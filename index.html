@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Médico DendritasMed - v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1a73e8; --secondary: #4285f4; --bg: #f8f9fa; --text: #202124; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+        .nav { background: var(--primary); color: white; padding: 1rem; display: flex; gap: 1rem; justify-content: center; position: sticky; top: 0; z-index: 100; }
+        .nav button { background: none; border: 1px solid white; color: white; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; }
+        .nav button:hover { background: white; color: var(--primary); }
+        .container { max-width: 900px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .full-width { grid-column: span 2; }
+        .panel { border: 1px solid #ddd; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; }
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 1rem; width: 100%; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+        .hidden { display: none; }
+        h2, h3 { color: var(--primary); margin-top: 0; }
+        .card-consulta { border-left: 5px solid var(--primary); padding: 1rem; margin-bottom: 1rem; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<div id="login-screen" class="container" style="margin-top: 10% text-align: center;">
+    <h2>Acceso Médico</h2>
+    <input type="text" id="login-ci" placeholder="Número de C.I.">
+    <button class="btn-save" onclick="app.login()">Entrar al Sistema</button>
+</div>
+
+<div id="app-content" class="hidden">
+    <div class="nav">
+        <button onclick="app.view('dashboard')">Inicio</button>
+        <button onclick="app.view('paciente')">Nuevo Paciente</button>
+        <button onclick="app.view('consulta')">Nueva Consulta</button>
+        <button onclick="location.reload()">Cerrar</button>
+    </div>
+
+    <div class="container">
+        <div id="view-dashboard" class="view">
+            <h2 id="txt-bienvenida">Bienvenido</h2>
+            <h3>Últimas Consultas</h3>
+            <div id="lista-consultas">Cargando...</div>
+        </div>
+
+        <div id="view-paciente" class="view hidden">
+            <h2>Registrar Nuevo Paciente</h2>
+            <div class="grid">
+                <div><label>Cédula</label><input type="text" id="p-ci"></div>
+                <div><label>Sexo</label>
+                    <select id="p-sexo"><option value="M">Masculino</option><option value="F">Femenino</option><option value="O">Otro</option></select>
+                </div>
+                <div><label>Nombre</label><input type="text" id="p-nombre"></div>
+                <div><label>Apellido</label><input type="text" id="p-apellido"></div>
+                <div><label>Fec. Nacimiento</label><input type="date" id="p-fecnac"></div>
+                <div><label>Teléfono</label><input type="text" id="p-tel"></div>
+                
+                <div class="full-width"><h3>Ubicación</h3></div>
+                <div>
+                    <label>Departamento</label>
+                    <select id="p-dep" onchange="app.cargarCiudades(this.value, 'p-ciu')"></select>
+                </div>
+                <div>
+                    <label>Ciudad</label>
+                    <select id="p-ciu"><option value="">Seleccione Departamento</option></select>
+                </div>
+                <button class="btn-save full-width" onclick="app.guardarPaciente()">Guardar Paciente</button>
+            </div>
+        </div>
+
+        <div id="view-consulta" class="view hidden">
+            <h2>Nueva Ficha Clínica</h2>
+            <div class="panel">
+                <label>C.I. Paciente</label>
+                <input type="text" id="c-ci" placeholder="Presione Enter para buscar" onchange="app.buscarPaciente(this.value)">
+                <p id="c-paciente-nombre" style="font-weight: bold; color: green;"></p>
+            </div>
+
+            <div class="panel">
+                <h3>Signos Vitales</h3>
+                <div class="grid">
+                    <div><label>Presión Art.</label><input type="text" id="s-pa" placeholder="120/80"></div>
+                    <div><label>Peso (kg)</label><input type="number" id="s-peso" step="0.1" oninput="app.calcIMC()"></div>
+                    <div><label>Altura (m)</label><input type="number" id="s-alt" step="0.01" oninput="app.calcIMC()"></div>
+                    <div><label>IMC</label><input type="text" id="s-imc" readonly style="background: #eee;"></div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Evolución y Diagnóstico</h3>
+                <label>Motivo de Consulta</label><textarea id="c-motivo"></textarea>
+                <label>Anamnesis</label><textarea id="c-anamnesis"></textarea>
+                <label>Diagnóstico</label><textarea id="c-diag"></textarea>
+            </div>
+
+            <button class="btn-save" onclick="app.guardarConsulta()">Finalizar y Guardar Consulta</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CONFIGURACIÓN SUPABASE
+    const SB_URL = 'https://iinbesofnrhpvtxmtcku.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbmJlc29mbnJocHZ0eG10Y2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ1NjIsImV4cCI6MjA4MzYyMDU2Mn0.RVB96UgGa7sscNrRurViF8dz-sMyb-9mHU9c-RDHLNY';
+    const _sb = supabase.createClient(SB_URL, SB_KEY);
+
+    const app = {
+        user: null,
+        currentPac: null,
+
+        async init() {
+            // Cargar Departamentos inicialmente
+            const { data } = await _sb.from('departamentos').select('*').order('nombre_dep');
+            const select = document.getElementById('p-dep');
+            select.innerHTML = '<option value="">Seleccione...</option>' + 
+                data.map(d => `<option value="${d.id_departamento}">${d.nombre_dep}</option>`).join('');
+        },
+
+        async login() {
+            const ci = document.getElementById('login-ci').value;
+            const { data, error } = await _sb.from('medicos').select('*').eq('cedula_identidad', ci).maybeSingle();
+            if (data) {
+                this.user = data;
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                document.getElementById('txt-bienvenida').innerText = `Dr/a. ${data.nombre} ${data.apellido}`;
+                this.init();
+                this.listarConsultas();
+            } else { alert("C.I. no registrada"); }
+        },
+
+        view(name) {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById('view-' + name).classList.remove('hidden');
+        },
+
+        async cargarCiudades(depId, targetId) {
+            if(!depId) return;
+            const { data } = await _sb.from('ciudades').select('*').eq('id_departamento', depId).order('nombre_ciudad');
+            const select = document.getElementById(targetId);
+            select.innerHTML = data.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('');
+        },
+
+        calcIMC() {
+            const p = document.getElementById('s-peso').value;
+            const a = document.getElementById('s-alt').value;
+            if(p && a) {
+                const imc = (p / (a * a)).toFixed(2);
+                document.getElementById('s-imc').value = imc;
+            }
+        },
+
+        async buscarPaciente(ci) {
+            const { data } = await _sb.from('pacientes').select('*').eq('cedula', ci).maybeSingle();
+            if(data) {
+                this.currentPac = data;
+                document.getElementById('c-paciente-nombre').innerText = `Paciente: ${data.nombre} ${data.apellido}`;
+            } else {
+                alert("Paciente no encontrado. Regístrelo primero.");
+                this.view('paciente');
+            }
+        },
+
+        async guardarPaciente() {
+            const p = {
+                cedula: document.getElementById('p-ci').value,
+                nombre: document.getElementById('p-nombre').value,
+                apellido: document.getElementById('p-apellido').value,
+                sexo: document.getElementById('p-sexo').value,
+                fecha_nacimiento: document.getElementById('p-fecnac').value,
+                telefono: document.getElementById('p-tel').value,
+                id_ciudad: document.getElementById('p-ciu').value
+            };
+            const { error } = await _sb.from('pacientes').insert([p]);
+            if(error) alert(error.message); else { alert("Paciente guardado"); this.view('dashboard'); }
+        },
+
+        async guardarConsulta() {
+            if(!this.currentPac) return alert("Busque un paciente primero");
+            
+            // 1. Guardar Consulta
+            const { data: con, error: errC } = await _sb.from('consultas').insert([{
+                id_medico: this.user.id_medico,
+                id_paciente: this.currentPac.id_paciente,
+                motivo_consulta: document.getElementById('c-motivo').value,
+                anamnesis: document.getElementById('c-anamnesis').value,
+                diagnostico: document.getElementById('c-diag').value,
+                tipo_pago: 'Particular',
+                monto_total: 150000
+            }]).select().single();
+
+            if(errC) return alert(errC.message);
+
+            // 2. Guardar Signos vinculados a la consulta
+            await _sb.from('signos').insert([{
+                id_consulta: con.id_consulta,
+                presion_arterial: document.getElementById('s-pa').value,
+                peso: document.getElementById('s-peso').value,
+                altura: document.getElementById('s-alt').value,
+                imc: document.getElementById('s-imc').value
+            }]);
+
+            alert("Consulta finalizada con éxito");
+            this.view('dashboard');
+            this.listarConsultas();
+        },
+
+        async listarConsultas() {
+            const { data } = await _sb.from('consultas').select('*, pacientes(nombre, apellido)').eq('id_medico', this.user.id_medico).order('fecha_hora', {ascending:false});
+            const div = document.getElementById('lista-consultas');
+            div.innerHTML = data.map(c => `
+                <div class="card-consulta">
+                    <strong>${c.pacientes.nombre} ${c.pacientes.apellido}</strong><br>
+                    <small>${new Date(c.fecha_hora).toLocaleString()} - Motivo: ${c.motivo_consulta}</small>
+                </div>
+            `).join('');
+        }
+    };
+</script>
+
+</body>
+</html>
