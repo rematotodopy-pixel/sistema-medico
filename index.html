@@ -1,119 +1,117 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DendritasMed - Clinical Management</title>
+    <title>DendritasMed - Gestión de Seguros y Sanatorios</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .sidebar-item:hover { background-color: rgba(255,255,255,0.1); }
-        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
-        .print-only { display: none; }
-    </style>
 </head>
-<body class="bg-slate-100 text-slate-900">
+<body class="bg-slate-100 text-slate-900 font-sans">
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-[#0f172a] px-4">
         <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md border-t-4 border-blue-600">
             <div class="text-center mb-8">
                 <i data-lucide="activity" class="text-blue-600 w-10 h-10 mx-auto mb-2"></i>
-                <h1 class="text-3xl font-bold">Dendritas<span class="text-blue-600">Med</span></h1>
+                <h1 class="text-3xl font-bold tracking-tighter">Dendritas<span class="text-blue-600">Med</span></h1>
             </div>
             <div class="space-y-4">
-                <input type="email" id="login-email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-600">
-                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-600">
-                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all">ENTRAR</button>
+                <input type="email" id="login-email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none">
+                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-xl outline-none">
+                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all">ACCEDER</button>
             </div>
         </div>
     </div>
 
-    <div id="app-content" class="hidden min-h-screen flex no-print">
-        <aside class="w-64 bg-slate-900 text-white flex flex-col">
-            <div class="p-6 border-b border-slate-800 font-bold text-xl">DendritasMed</div>
-            <nav class="flex-1 p-4 space-y-2">
-                <button onclick="app.view('dashboard')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="home" class="mr-2 w-4"></i> Inicio</button>
-                <button onclick="app.view('paciente')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="user-plus" class="mr-2 w-4"></i> Nuevo Paciente</button>
-                <button onclick="app.view('consulta')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="stethoscope" class="mr-2 w-4"></i> Consulta</button>
+    <div id="app-content" class="hidden min-h-screen flex">
+        <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl">
+            <div class="p-6 border-b border-slate-800 text-white font-bold text-xl flex items-center gap-2">
+                <i data-lucide="building-2" class="text-blue-500 w-5 h-5"></i> DendritasMed
+            </div>
+            <nav class="flex-1 p-4 space-y-1">
+                <button onclick="app.view('dashboard')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="layout-grid" class="mr-3 w-4"></i> Inicio</button>
+                <button onclick="app.view('paciente')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="user-plus" class="mr-3 w-4"></i> Nuevo Paciente</button>
+                <button onclick="app.view('consulta')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="stethoscope" class="mr-3 w-4"></i> Consulta</button>
             </nav>
-            <button onclick="location.reload()" class="p-6 text-red-400 text-sm font-bold border-t border-slate-800">Cerrar Sesión</button>
+            <div class="p-4 border-t border-slate-800">
+                <label class="text-[9px] font-bold text-slate-500 uppercase block mb-2">Sede Actual</label>
+                <select id="select-sanatorio" onchange="app.cambiarSanatorio()" class="w-full bg-slate-800 text-xs p-2 rounded border-none outline-none text-white"></select>
+            </div>
+            <button onclick="location.reload()" class="p-6 text-red-400 text-xs font-bold flex items-center"><i data-lucide="log-out" class="mr-2 w-4"></i> SALIR</button>
         </aside>
 
         <main class="flex-1 overflow-y-auto">
-            <header class="bg-white p-4 border-b flex justify-between items-center">
-                <h2 id="view-title" class="font-bold text-slate-500 uppercase text-xs tracking-widest">Dashboard</h2>
-                <span id="user-name" class="text-xs font-bold bg-blue-50 text-blue-700 px-3 py-1 rounded-full italic">Cargando...</span>
+            <header class="bg-white p-4 border-b flex justify-between items-center sticky top-0 z-10">
+                <h2 id="view-title" class="font-black text-slate-400 uppercase text-[10px] tracking-widest">Dashboard</h2>
+                <div class="flex items-center gap-4">
+                    <span id="sanatorio-actual" class="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter italic">Sanatorio no seleccionado</span>
+                    <span id="user-name" class="text-xs font-bold bg-blue-50 text-blue-700 px-4 py-2 rounded-full border border-blue-100">...</span>
+                </div>
             </header>
 
-            <section id="main-view" class="p-8">
+            <section id="main-view" class="p-8 max-w-6xl mx-auto">
                 
-                <div id="view-paciente" class="hidden max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border">
-                    <h3 class="text-xl font-bold mb-6 flex items-center gap-2"><i data-lucide="user-plus" class="text-blue-600"></i> Registro de Paciente</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-2">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Cédula (Obligatorio)</label>
-                            <input type="text" id="p-cedula" class="w-full p-3 bg-slate-50 border rounded-xl">
+                <div id="view-paciente" class="hidden animate-in fade-in duration-300">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
+                        <h3 class="text-xl font-bold mb-8 flex items-center gap-2 text-slate-800"><i data-lucide="user-plus" class="text-blue-600"></i> Alta de Paciente</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div><label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Cédula *</label><input type="text" id="p-cedula" class="w-full p-3 bg-slate-50 border rounded-xl"></div>
+                            <div><label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Nombre *</label><input type="text" id="p-nombre" class="w-full p-3 bg-slate-50 border rounded-xl"></div>
+                            <div><label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Apellido *</label><input type="text" id="p-apellido" class="w-full p-3 bg-slate-50 border rounded-xl"></div>
+                            <div><label class="text-[10px] font-black uppercase text-slate-400 block mb-1">F. Nacimiento *</label><input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl"></div>
+                            <div><label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Teléfono *</label><input type="text" id="p-telefono" class="w-full p-3 bg-slate-50 border rounded-xl"></div>
+                            <div>
+                                <label class="text-[10px] font-black uppercase text-slate-400 block mb-1">Seguro Médico Principal</label>
+                                <select id="p-seguro" class="w-full p-3 bg-blue-50 border-blue-200 border rounded-xl font-bold"></select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Nombre</label>
-                            <input type="text" id="p-nombre" class="w-full p-3 bg-slate-50 border rounded-xl">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Apellido</label>
-                            <input type="text" id="p-apellido" class="w-full p-3 bg-slate-50 border rounded-xl">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Fecha Nacimiento</label>
-                            <input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Sexo</label>
-                            <select id="p-sexo" class="w-full p-3 bg-slate-50 border rounded-xl">
-                                <option value="M">Masculino</option>
-                                <option value="F">Femenino</option>
-                                <option value="O">Otro</option>
-                            </select>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase">Teléfono (Obligatorio)</label>
-                            <input type="text" id="p-telefono" placeholder="Ej: 0981..." class="w-full p-3 bg-slate-50 border rounded-xl">
-                        </div>
+                        <button onclick="app.guardarPaciente()" class="w-full bg-slate-900 text-white p-5 rounded-2xl font-black mt-10 hover:bg-blue-600 transition-all shadow-lg">REGISTRAR PACIENTE</button>
                     </div>
-                    <button onclick="app.guardarPaciente()" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold mt-8 hover:bg-blue-600 transition-all">GUARDAR PACIENTE</button>
                 </div>
 
                 <div id="view-consulta" class="hidden space-y-6">
                     <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                        <label class="text-xs font-bold text-slate-400 uppercase block mb-2">Localizar Paciente por Cédula</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="c-ci" class="flex-1 p-3 bg-slate-50 border rounded-xl outline-none">
-                            <button onclick="app.buscarPaciente()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">BUSCAR</button>
+                        <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 italic">Búsqueda de Paciente</label>
+                        <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Nombre o Cédula..." class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                        <div id="c-lista-busqueda" class="mt-2 hidden border rounded-xl overflow-hidden divide-y bg-white shadow-xl"></div>
+                        <div id="c-paciente-box" class="mt-4 hidden p-4 rounded-xl flex justify-between items-center">
+                            <span id="c-paciente-info" class="font-black text-blue-700"></span>
+                            <span id="c-paciente-seguro-tag" class="text-[10px] font-bold px-3 py-1 rounded-full uppercase border"></span>
                         </div>
-                        <p id="c-paciente-info" class="mt-3 text-blue-700 font-bold hidden"></p>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
                             <h4 class="font-bold border-b pb-2">Signos Vitales</h4>
-                            <input type="text" id="s-pa" placeholder="Presión Arterial" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="number" id="s-peso" placeholder="Peso (kg)" oninput="app.calcIMC()" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="number" id="s-alt" placeholder="Altura (m)" oninput="app.calcIMC()" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <div class="p-3 bg-blue-600 text-white rounded-xl">
-                                <span class="text-[10px] uppercase font-bold">IMC</span>
-                                <input type="text" id="s-imc" readonly class="w-full bg-transparent text-2xl font-bold outline-none" value="0.00">
+                            <div class="grid grid-cols-2 gap-3">
+                                <input type="number" id="s-peso" placeholder="Peso" oninput="app.calcIMC()" class="p-2 border rounded-lg text-sm">
+                                <input type="number" id="s-alt" placeholder="Altura" oninput="app.calcIMC()" class="p-2 border rounded-lg text-sm">
                             </div>
+                            <input type="text" id="s-imc" readonly class="w-full bg-slate-100 p-3 rounded-xl font-black text-center" value="IMC: 0.00">
                         </div>
+
                         <div class="md:col-span-2 bg-white p-6 rounded-2xl border shadow-sm space-y-4">
-                            <h4 class="font-bold border-b pb-2">Evolución</h4>
-                            <textarea id="c-motivo" placeholder="Motivo de consulta..." class="w-full p-3 bg-slate-50 border rounded-xl h-20"></textarea>
-                            <textarea id="c-anamnesis" placeholder="Anamnesis y Exploración..." class="w-full p-3 bg-slate-50 border rounded-xl h-32"></textarea>
-                            <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-3 bg-slate-50 border rounded-xl h-20"></textarea>
-                            <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg">GUARDAR CONSULTA</button>
+                            <h4 class="font-bold border-b pb-2">Evolución Médica</h4>
+                            <textarea id="c-motivo" placeholder="Motivo de consulta..." class="w-full p-3 bg-slate-50 border rounded-xl h-20 text-sm"></textarea>
+                            <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-3 bg-slate-50 border rounded-xl h-20 text-sm"></textarea>
+                            
+                            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex justify-between items-center">
+                                <div>
+                                    <p class="text-[10px] font-bold text-blue-800 uppercase">Modalidad de Atención</p>
+                                    <h4 id="display-modalidad" class="text-xl font-black text-blue-900">Particular</h4>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-bold text-blue-800 uppercase">Estado para Liquidación</p>
+                                    <span id="display-estado-pago" class="bg-blue-600 text-white px-4 py-1 rounded-full font-bold text-xs uppercase">Pendiente</span>
+                                </div>
+                            </div>
+
+                            <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-blue-700">GUARDAR Y FINALIZAR</button>
                         </div>
                     </div>
                 </div>
-
             </section>
         </main>
     </div>
@@ -126,23 +124,56 @@
         const app = {
             user: null,
             pacienteActual: null,
+            sanatorioActualId: null,
+            segurosLista: [],
 
             async handleLogin() {
                 const email = document.getElementById('login-email').value;
                 const pass = document.getElementById('login-pass').value;
                 const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
-                if (error) return alert("Acceso inválido.");
+                if (error) return alert("Error de acceso.");
                 const { data: med } = await _sb.from('medicos').select('*').eq('email', email).maybeSingle();
                 this.user = med;
                 this.start();
             },
 
-            start() {
+            async start() {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('user-name').innerText = `Dr/a. ${this.user.nombre} ${this.user.apellido}`;
+                
+                // Cargar Catálogos
+                await this.cargarHospitales();
+                await this.cargarSeguros();
+                
                 lucide.createIcons();
                 this.view('dashboard');
+            },
+
+            async cargarHospitales() {
+                const { data } = await _sb.from('hospitales').select('*');
+                const select = document.getElementById('select-sanatorio');
+                select.innerHTML = '<option value="">-- Seleccionar Sanatorio --</option>';
+                data.forEach(h => {
+                    select.innerHTML += `<option value="${h.id_hospital}">${h.nombre_hospital}</option>`;
+                });
+            },
+
+            async cargarSeguros() {
+                const { data } = await _sb.from('seguros').select('*');
+                this.segurosLista = data;
+                const select = document.getElementById('p-seguro');
+                select.innerHTML = '<option value="">Sin Seguro (Particular)</option>';
+                data.forEach(s => {
+                    select.innerHTML += `<option value="${s.id_seguro}">${s.nombre_seguro}</option>`;
+                });
+            },
+
+            cambiarSanatorio() {
+                const select = document.getElementById('select-sanatorio');
+                this.sanatorioActualId = select.value;
+                const nombre = select.options[select.selectedIndex].text;
+                document.getElementById('sanatorio-actual').innerText = nombre;
             },
 
             view(name) {
@@ -152,77 +183,84 @@
             },
 
             async guardarPaciente() {
-                // MATCH EXACTO CON TU SQL:
                 const payload = {
                     cedula: document.getElementById('p-cedula').value,
                     nombre: document.getElementById('p-nombre').value,
                     apellido: document.getElementById('p-apellido').value,
                     fecha_nacimiento: document.getElementById('p-fecha-nac').value,
-                    sexo: document.getElementById('p-sexo').value,
-                    telefono: document.getElementById('p-telefono').value // ES NOT NULL EN TU SQL
+                    telefono: document.getElementById('p-telefono').value,
+                    id_seguro_principal: document.getElementById('p-seguro').value || null
                 };
-
-                if (!payload.cedula || !payload.nombre || !payload.apellido || !payload.fecha_nacimiento || !payload.telefono) {
-                    return alert("⚠️ Faltan datos obligatorios según la base de datos (Cédula, Nombre, Apellido, Fecha Nac. y Teléfono).");
-                }
-
-                const { data, error } = await _sb.from('pacientes').insert([payload]);
-                if (error) {
-                    console.error(error);
-                    alert("Error " + error.code + ": " + error.message);
-                } else {
-                    alert("✅ Paciente registrado con éxito.");
-                    this.view('dashboard');
-                }
+                const { error } = await _sb.from('pacientes').insert([payload]);
+                if (error) alert(error.message);
+                else { alert("✅ Paciente registrado."); this.view('dashboard'); }
             },
 
             async buscarPaciente() {
-                const ci = document.getElementById('c-ci').value;
-                const { data } = await _sb.from('pacientes').select('*').eq('cedula', ci).maybeSingle();
-                if (data) {
-                    this.pacienteActual = data;
-                    const info = document.getElementById('c-paciente-info');
-                    info.innerText = `PACIENTE: ${data.nombre} ${data.apellido}`;
-                    info.classList.remove('hidden');
-                } else {
-                    alert("No encontrado.");
+                const query = document.getElementById('c-busqueda').value;
+                if(query.length < 2) return;
+                const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or(`cedula.eq.${query},nombre.ilike.%${query}%,apellido.ilike.%${query}%`).limit(5);
+                const list = document.getElementById('c-lista-busqueda');
+                list.innerHTML = "";
+                if (data.length > 0) {
+                    list.classList.remove('hidden');
+                    data.forEach(p => {
+                        const div = document.createElement('div');
+                        div.className = "p-4 hover:bg-slate-50 cursor-pointer";
+                        div.innerHTML = `<b>${p.nombre} ${p.apellido}</b> - CI: ${p.cedula}`;
+                        div.onclick = () => {
+                            this.pacienteActual = p;
+                            document.getElementById('c-paciente-info').innerText = `${p.nombre} ${p.apellido}`;
+                            document.getElementById('c-paciente-box').classList.remove('hidden');
+                            list.classList.add('hidden');
+                            
+                            // Lógica de Seguro
+                            const tag = document.getElementById('c-paciente-seguro-tag');
+                            const mod = document.getElementById('display-modalidad');
+                            if(p.id_seguro_principal) {
+                                tag.innerText = p.seguros?.nombre_seguro || "CON SEGURO";
+                                tag.className = "text-[10px] font-bold px-3 py-1 rounded-full uppercase bg-emerald-100 text-emerald-700 border-emerald-200";
+                                mod.innerText = "Facturar a Seguro";
+                            } else {
+                                tag.innerText = "PARTICULAR";
+                                tag.className = "text-[10px] font-bold px-3 py-1 rounded-full uppercase bg-orange-100 text-orange-700 border-orange-200";
+                                mod.innerText = "Particular";
+                            }
+                        };
+                        list.appendChild(div);
+                    });
                 }
             },
 
             calcIMC() {
                 const p = parseFloat(document.getElementById('s-peso').value);
                 const a = parseFloat(document.getElementById('s-alt').value);
-                if (p && a) document.getElementById('s-imc').value = (p / (a * a)).toFixed(2);
+                if (p > 0 && a > 0) {
+                    const alt = a > 3 ? a / 100 : a;
+                    document.getElementById('s-imc').value = "IMC: " + (p / (alt * alt)).toFixed(2);
+                }
             },
 
             async finalizarConsulta() {
-                if(!this.pacienteActual) return alert("Busque un paciente.");
-                
-                // MATCH CON TU TABLA 'consultas'
-                const payloadConsulta = {
+                if(!this.sanatorioActualId) return alert("Seleccione el sanatorio en el menú lateral.");
+                if(!this.pacienteActual) return alert("Seleccione un paciente.");
+
+                const payload = {
                     id_medico: this.user.id_medico,
                     id_paciente: this.pacienteActual.id_paciente,
+                    id_hospital: this.sanatorioActualId,
+                    id_seguro: this.pacienteActual.id_seguro_principal,
+                    tipo_pago: this.pacienteActual.id_seguro_principal ? 'Seguro' : 'Particular',
                     motivo_consulta: document.getElementById('c-motivo').value,
-                    anamnesis: document.getElementById('c-anamnesis').value,
-                    diagnostico: document.getElementById('c-diag').value
+                    diagnostico: document.getElementById('c-diag').value,
+                    estado_pago: 'Pendiente'
                 };
 
-                const { data: con, error } = await _sb.from('consultas').insert([payloadConsulta]).select().single();
-                
+                const { data: con, error } = await _sb.from('consultas').insert([payload]).select().single();
                 if (con) {
-                    // MATCH CON TU TABLA 'signos'
-                    await _sb.from('signos').insert([{
-                        id_consulta: con.id_consulta,
-                        presion_arterial: document.getElementById('s-pa').value,
-                        peso: document.getElementById('s-peso').value,
-                        altura: document.getElementById('s-alt').value,
-                        imc: document.getElementById('s-imc').value
-                    }]);
-                    alert("✅ Consulta guardada.");
-                    location.reload();
-                } else {
-                    alert("Error al guardar consulta: " + error.message);
-                }
+                    alert("✅ Consulta guardada. Se ha registrado para liquidación.");
+                    this.view('dashboard');
+                } else alert(error.message);
             }
         };
     </script>
