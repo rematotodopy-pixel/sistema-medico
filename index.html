@@ -3,222 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Médico DendritasMed - v2.0</title>
+    <title>Ha Mbae - Sistema Médico Profesional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root { --primary: #1a73e8; --secondary: #4285f4; --bg: #f8f9fa; --text: #202124; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); }
-        .nav { background: var(--primary); color: white; padding: 1rem; display: flex; gap: 1rem; justify-content: center; position: sticky; top: 0; z-index: 100; }
-        .nav button { background: none; border: 1px solid white; color: white; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer; }
-        .nav button:hover { background: white; color: var(--primary); }
-        .container { max-width: 900px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .full-width { grid-column: span 2; }
-        .panel { border: 1px solid #ddd; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; }
-        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .btn-save { background: #28a745; color: white; border: none; padding: 1rem; width: 100%; border-radius: 6px; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
-        .hidden { display: none; }
-        h2, h3 { color: var(--primary); margin-top: 0; }
-        .card-consulta { border-left: 5px solid var(--primary); padding: 1rem; margin-bottom: 1rem; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .sidebar-item:hover { background-color: rgba(255,255,255,0.1); }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+        .print-only { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-800">
 
-<div id="login-screen" class="container" style="margin-top: 10% text-align: center;">
-    <h2>Acceso Médico</h2>
-    <input type="text" id="login-ci" placeholder="Número de C.I.">
-    <button class="btn-save" onclick="app.login()">Entrar al Sistema</button>
-</div>
-
-<div id="app-content" class="hidden">
-    <div class="nav">
-        <button onclick="app.view('dashboard')">Inicio</button>
-        <button onclick="app.view('paciente')">Nuevo Paciente</button>
-        <button onclick="app.view('consulta')">Nueva Consulta</button>
-        <button onclick="location.reload()">Cerrar</button>
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-blue-700 px-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-blue-700">Ha Mbae</h1>
+                <p class="text-gray-500 font-medium">Gestión Clínica Profesional</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Email del Médico</label>
+                    <input type="email" id="login-email" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1">Contraseña</label>
+                    <input type="password" id="login-pass" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+                <button onclick="app.handleLogin()" class="w-full bg-blue-700 text-white p-3 rounded-xl font-bold hover:bg-blue-800 transition transform active:scale-95">
+                    Entrar al Sistema
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="container">
-        <div id="view-dashboard" class="view">
-            <h2 id="txt-bienvenida">Bienvenido</h2>
-            <h3>Últimas Consultas</h3>
-            <div id="lista-consultas">Cargando...</div>
-        </div>
+    <div id="app-content" class="hidden min-h-screen flex no-print">
+        <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl">
+            <div class="p-6 border-b border-slate-800">
+                <h2 class="text-xl font-bold tracking-wider">PANEL MÉDICO</h2>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="app.view('dashboard')" class="sidebar-item w-full flex items-center p-3 rounded-xl transition"><i data-lucide="home" class="mr-3 w-5"></i> Inicio</button>
+                <button onclick="app.view('paciente')" class="sidebar-item w-full flex items-center p-3 rounded-xl transition"><i data-lucide="user-plus" class="mr-3 w-5"></i> Nuevo Paciente</button>
+                <button onclick="app.view('consulta')" class="sidebar-item w-full flex items-center p-3 rounded-xl transition"><i data-lucide="file-text" class="mr-3 w-5"></i> Nueva Consulta</button>
+            </nav>
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="app.logout()" class="w-full flex items-center p-3 text-red-400 hover:bg-red-500/10 rounded-xl transition"><i data-lucide="log-out" class="mr-3 w-5"></i> Cerrar Sesión</button>
+            </div>
+        </aside>
 
-        <div id="view-paciente" class="view hidden">
-            <h2>Registrar Nuevo Paciente</h2>
-            <div class="grid">
-                <div><label>Cédula</label><input type="text" id="p-ci"></div>
-                <div><label>Sexo</label>
-                    <select id="p-sexo"><option value="M">Masculino</option><option value="F">Femenino</option><option value="O">Otro</option></select>
+        <main class="flex-1 overflow-y-auto">
+            <header class="bg-white p-4 shadow-sm flex justify-between items-center border-b">
+                <h3 id="view-title" class="text-lg font-bold text-slate-700">DASHBOARD</h3>
+                <div class="flex items-center gap-3">
+                    <span id="user-name" class="text-sm font-semibold bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full border border-blue-100">Cargando...</span>
                 </div>
-                <div><label>Nombre</label><input type="text" id="p-nombre"></div>
-                <div><label>Apellido</label><input type="text" id="p-apellido"></div>
-                <div><label>Fec. Nacimiento</label><input type="date" id="p-fecnac"></div>
-                <div><label>Teléfono</label><input type="text" id="p-tel"></div>
+            </header>
+
+            <section id="main-view" class="p-6">
+                <div id="view-consulta" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border">
+                        <h4 class="font-bold text-slate-700 mb-4 flex items-center"><i data-lucide="search" class="mr-2 w-5"></i> Buscar Paciente</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="c-ci" placeholder="Cédula de identidad..." class="flex-1 p-3 border rounded-xl outline-none focus:border-blue-500">
+                            <button onclick="app.buscarPaciente()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700">Buscar</button>
+                        </div>
+                        <p id="c-paciente-info" class="mt-3 text-green-600 font-bold hidden"></p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border space-y-4">
+                            <h4 class="font-bold text-slate-700">Signos Vitales</h4>
+                            <input type="text" id="s-pa" placeholder="Presión (ej: 120/80)" class="w-full p-3 border rounded-xl">
+                            <input type="number" id="s-peso" placeholder="Peso (kg)" step="0.1" oninput="app.calcIMC()" class="w-full p-3 border rounded-xl">
+                            <input type="number" id="s-alt" placeholder="Altura (m)" step="0.01" oninput="app.calcIMC()" class="w-full p-3 border rounded-xl">
+                            <div class="bg-gray-50 p-3 rounded-xl border border-dashed">
+                                <span class="text-xs text-gray-500 uppercase font-bold">IMC Calculado</span>
+                                <input type="text" id="s-imc" readonly class="w-full bg-transparent text-xl font-bold text-blue-600 outline-none" value="0.00">
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border space-y-4">
+                            <h4 class="font-bold text-slate-700">Evaluación Médica</h4>
+                            <textarea id="c-motivo" placeholder="Motivo de la consulta..." class="w-full p-3 border rounded-xl h-20"></textarea>
+                            <textarea id="c-anamnesis" placeholder="Anamnesis / Evolución..." class="w-full p-3 border rounded-xl h-32"></textarea>
+                            <textarea id="c-diag" placeholder="Diagnóstico Final..." class="w-full p-3 border rounded-xl h-20"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border">
+                        <h4 class="font-bold text-green-700 mb-4 flex items-center"><i data-lucide="pill" class="mr-2 w-5"></i> Prescripción Médica</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-6">
+                            <input type="text" id="rx-med" placeholder="Medicamento" class="p-3 border rounded-xl">
+                            <input type="text" id="rx-dos" placeholder="Dosis" class="p-3 border rounded-xl">
+                            <input type="text" id="rx-fre" placeholder="Frecuencia" class="p-3 border rounded-xl">
+                            <button onclick="app.addMedicamento()" class="bg-green-600 text-white p-3 rounded-xl font-bold hover:bg-green-700 transition">+</button>
+                        </div>
+                        <table class="w-full">
+                            <thead class="text-left border-b text-gray-500 text-sm">
+                                <tr><th class="pb-2">Medicamento</th><th class="pb-2">Dosis</th><th class="pb-2">Frecuencia</th><th class="pb-2 text-right">Acción</th></tr>
+                            </thead>
+                            <tbody id="lista-rx-body" class="divide-y"></tbody>
+                        </table>
+                    </div>
+
+                    <button onclick="app.finalizarConsulta()" class="w-full bg-blue-700 text-white p-5 rounded-2xl font-bold text-xl hover:bg-blue-800 shadow-lg transition transform active:scale-[0.98]">
+                        Guardar Ficha e Imprimir Receta
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="print-area" class="print-only p-10 leading-relaxed text-black">
+        <div class="text-center border-b-2 border-black pb-4 mb-6">
+            <h1 id="p-dr-nombre" class="text-2xl font-bold uppercase"></h1>
+            <p id="p-dr-esp" class="italic text-gray-700"></p>
+            <p id="p-dr-reg" class="text-sm"></p>
+        </div>
+        <div class="mb-8">
+            <p><strong>PACIENTE:</strong> <span id="p-pac-nombre"></span></p>
+            <p><strong>FECHA:</strong> <span id="p-fecha"></span></p>
+        </div>
+        <div class="min-h-[400px]">
+            <h2 class="text-xl font-bold border-b mb-4">RP /</h2>
+            <div id="p-receta-lista" class="space-y-4"></div>
+        </div>
+        <div class="mt-20 text-center border-t border-black pt-4 w-64 mx-auto">
+            <p class="text-sm">Firma y Sello</p>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE CONEXIÓN (São Paulo)
+        const SB_URL = 'https://iinbesofnrhpvtxmtcku.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbmJlc29mbnJocHZ0eG10Y2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ1NjIsImV4cCI6MjA4MzYyMDU2Mn0.RVB96UgGa7sscNrRurViF8dz-sMyb-9mHU9c-RDHLNY';
+        const _sb = supabase.createClient(SB_URL, SB_KEY);
+
+        const app = {
+            user: null,
+            pacienteActual: null,
+            recetaTemporal: [],
+
+            async handleLogin() {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-pass').value;
+                const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+                if (error) return alert("Acceso Denegado: " + error.message);
                 
-                <div class="full-width"><h3>Ubicación</h3></div>
-                <div>
-                    <label>Departamento</label>
-                    <select id="p-dep" onchange="app.cargarCiudades(this.value, 'p-ciu')"></select>
-                </div>
-                <div>
-                    <label>Ciudad</label>
-                    <select id="p-ciu"><option value="">Seleccione Departamento</option></select>
-                </div>
-                <button class="btn-save full-width" onclick="app.guardarPaciente()">Guardar Paciente</button>
-            </div>
-        </div>
+                const { data: med } = await _sb.from('medicos').select('*').eq('email', email).single();
+                this.user = med;
+                this.start();
+            },
 
-        <div id="view-consulta" class="view hidden">
-            <h2>Nueva Ficha Clínica</h2>
-            <div class="panel">
-                <label>C.I. Paciente</label>
-                <input type="text" id="c-ci" placeholder="Presione Enter para buscar" onchange="app.buscarPaciente(this.value)">
-                <p id="c-paciente-nombre" style="font-weight: bold; color: green;"></p>
-            </div>
-
-            <div class="panel">
-                <h3>Signos Vitales</h3>
-                <div class="grid">
-                    <div><label>Presión Art.</label><input type="text" id="s-pa" placeholder="120/80"></div>
-                    <div><label>Peso (kg)</label><input type="number" id="s-peso" step="0.1" oninput="app.calcIMC()"></div>
-                    <div><label>Altura (m)</label><input type="number" id="s-alt" step="0.01" oninput="app.calcIMC()"></div>
-                    <div><label>IMC</label><input type="text" id="s-imc" readonly style="background: #eee;"></div>
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>Evolución y Diagnóstico</h3>
-                <label>Motivo de Consulta</label><textarea id="c-motivo"></textarea>
-                <label>Anamnesis</label><textarea id="c-anamnesis"></textarea>
-                <label>Diagnóstico</label><textarea id="c-diag"></textarea>
-            </div>
-
-            <button class="btn-save" onclick="app.guardarConsulta()">Finalizar y Guardar Consulta</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    // CONFIGURACIÓN SUPABASE
-    const SB_URL = 'https://iinbesofnrhpvtxmtcku.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbmJlc29mbnJocHZ0eG10Y2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ1NjIsImV4cCI6MjA4MzYyMDU2Mn0.RVB96UgGa7sscNrRurViF8dz-sMyb-9mHU9c-RDHLNY';
-    const _sb = supabase.createClient(SB_URL, SB_KEY);
-
-    const app = {
-        user: null,
-        currentPac: null,
-
-        async init() {
-            // Cargar Departamentos inicialmente
-            const { data } = await _sb.from('departamentos').select('*').order('nombre_dep');
-            const select = document.getElementById('p-dep');
-            select.innerHTML = '<option value="">Seleccione...</option>' + 
-                data.map(d => `<option value="${d.id_departamento}">${d.nombre_dep}</option>`).join('');
-        },
-
-        async login() {
-            const ci = document.getElementById('login-ci').value;
-            const { data, error } = await _sb.from('medicos').select('*').eq('cedula_identidad', ci).maybeSingle();
-            if (data) {
-                this.user = data;
+            start() {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
-                document.getElementById('txt-bienvenida').innerText = `Dr/a. ${data.nombre} ${data.apellido}`;
-                this.init();
-                this.listarConsultas();
-            } else { alert("C.I. no registrada"); }
-        },
+                document.getElementById('user-name').innerText = `Dr/a. ${this.user.nombre} ${this.user.apellido}`;
+                lucide.createIcons();
+                this.view('dashboard');
+            },
 
-        view(name) {
-            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-            document.getElementById('view-' + name).classList.remove('hidden');
-        },
+            view(name) {
+                document.querySelectorAll('#main-view > div').forEach(v => v.classList.add('hidden'));
+                document.getElementById('view-' + name).classList.remove('hidden');
+                document.getElementById('view-title').innerText = name.toUpperCase();
+            },
 
-        async cargarCiudades(depId, targetId) {
-            if(!depId) return;
-            const { data } = await _sb.from('ciudades').select('*').eq('id_departamento', depId).order('nombre_ciudad');
-            const select = document.getElementById(targetId);
-            select.innerHTML = data.map(c => `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`).join('');
-        },
+            async buscarPaciente() {
+                const ci = document.getElementById('c-ci').value;
+                const { data, error } = await _sb.from('pacientes').select('*').eq('cedula', ci).maybeSingle();
+                if (data) {
+                    this.pacienteActual = data;
+                    const info = document.getElementById('c-paciente-info');
+                    info.innerText = `Paciente: ${data.nombre} ${data.apellido}`;
+                    info.classList.remove('hidden');
+                } else {
+                    alert("Paciente no encontrado. Debe registrarlo primero.");
+                    this.view('paciente');
+                }
+            },
 
-        calcIMC() {
-            const p = document.getElementById('s-peso').value;
-            const a = document.getElementById('s-alt').value;
-            if(p && a) {
-                const imc = (p / (a * a)).toFixed(2);
-                document.getElementById('s-imc').value = imc;
+            calcIMC() {
+                const p = parseFloat(document.getElementById('s-peso').value);
+                const a = parseFloat(document.getElementById('s-alt').value);
+                if (p && a) {
+                    document.getElementById('s-imc').value = (p / (a * a)).toFixed(2);
+                }
+            },
+
+            addMedicamento() {
+                const m = document.getElementById('rx-med').value;
+                const d = document.getElementById('rx-dos').value;
+                const f = document.getElementById('rx-fre').value;
+                if (!m) return;
+                this.recetaTemporal.push({ m, d, f });
+                this.renderReceta();
+                document.getElementById('rx-med').value = '';
+                document.getElementById('rx-dos').value = '';
+                document.getElementById('rx-fre').value = '';
+            },
+
+            renderReceta() {
+                const body = document.getElementById('lista-rx-body');
+                body.innerHTML = this.recetaTemporal.map((item, i) => `
+                    <tr>
+                        <td class="py-3 font-medium">${item.m}</td>
+                        <td>${item.d}</td>
+                        <td>${item.f}</td>
+                        <td class="text-right"><button onclick="app.removeMed(${i})" class="text-red-500 font-bold">Eliminar</button></td>
+                    </tr>
+                `).join('');
+            },
+
+            removeMed(i) {
+                this.recetaTemporal.splice(i, 1);
+                this.renderReceta();
+            },
+
+            async finalizarConsulta() {
+                if (!this.pacienteActual) return alert("Seleccione un paciente.");
+                
+                try {
+                    // 1. Guardar Consulta
+                    const { data: con, error: errC } = await _sb.from('consultas').insert([{
+                        id_medico: this.user.id_medico,
+                        id_paciente: this.pacienteActual.id_paciente,
+                        motivo_consulta: document.getElementById('c-motivo').value,
+                        anamnesis: document.getElementById('c-anamnesis').value,
+                        diagnostico: document.getElementById('c-diag').value
+                    }]).select().single();
+                    if (errC) throw errC;
+
+                    // 2. Guardar Signos
+                    await _sb.from('signos').insert([{
+                        id_consulta: con.id_consulta,
+                        presion_arterial: document.getElementById('s-pa').value,
+                        peso: document.getElementById('s-peso').value,
+                        altura: document.getElementById('s-alt').value,
+                        imc: document.getElementById('s-imc').value
+                    }]);
+
+                    // 3. Guardar Receta si existe
+                    if (this.recetaTemporal.length > 0) {
+                        const { data: rx } = await _sb.from('recetas').insert([{ id_consulta: con.id_consulta }]).select().single();
+                        const detalles = this.recetaTemporal.map(i => ({ id_receta: rx.id_receta, medicacion: i.m, dosis: i.d, frecuencia: i.f }));
+                        await _sb.from('detalle_rx').insert(detalles);
+                        
+                        // PREPARAR IMPRESIÓN
+                        this.prepararImpresion();
+                    }
+
+                    alert("Ficha guardada correctamente.");
+                    location.reload();
+
+                } catch (e) { alert("Error: " + e.message); }
+            },
+
+            prepararImpresion() {
+                document.getElementById('p-dr-nombre').innerText = `Dr. ${this.user.nombre} ${this.user.apellido}`;
+                document.getElementById('p-dr-esp').innerText = this.user.especialidad || 'Medicina General';
+                document.getElementById('p-dr-reg').innerText = `Reg. Prof. N°: ${this.user.registro_profesional}`;
+                document.getElementById('p-pac-nombre').innerText = `${this.pacienteActual.nombre} ${this.pacienteActual.apellido}`;
+                document.getElementById('p-fecha').innerText = new Date().toLocaleDateString();
+                
+                const lista = document.getElementById('p-receta-lista');
+                lista.innerHTML = this.recetaTemporal.map(i => `
+                    <div>
+                        <p class="text-lg font-bold font-serif">${i.m}</p>
+                        <p class="text-sm ml-4 italic">Tomar: ${i.d} - Frecuencia: ${i.f}</p>
+                    </div>
+                `).join('');
+
+                window.print();
             }
-        },
-
-        async buscarPaciente(ci) {
-            const { data } = await _sb.from('pacientes').select('*').eq('cedula', ci).maybeSingle();
-            if(data) {
-                this.currentPac = data;
-                document.getElementById('c-paciente-nombre').innerText = `Paciente: ${data.nombre} ${data.apellido}`;
-            } else {
-                alert("Paciente no encontrado. Regístrelo primero.");
-                this.view('paciente');
-            }
-        },
-
-        async guardarPaciente() {
-            const p = {
-                cedula: document.getElementById('p-ci').value,
-                nombre: document.getElementById('p-nombre').value,
-                apellido: document.getElementById('p-apellido').value,
-                sexo: document.getElementById('p-sexo').value,
-                fecha_nacimiento: document.getElementById('p-fecnac').value,
-                telefono: document.getElementById('p-tel').value,
-                id_ciudad: document.getElementById('p-ciu').value
-            };
-            const { error } = await _sb.from('pacientes').insert([p]);
-            if(error) alert(error.message); else { alert("Paciente guardado"); this.view('dashboard'); }
-        },
-
-        async guardarConsulta() {
-            if(!this.currentPac) return alert("Busque un paciente primero");
-            
-            // 1. Guardar Consulta
-            const { data: con, error: errC } = await _sb.from('consultas').insert([{
-                id_medico: this.user.id_medico,
-                id_paciente: this.currentPac.id_paciente,
-                motivo_consulta: document.getElementById('c-motivo').value,
-                anamnesis: document.getElementById('c-anamnesis').value,
-                diagnostico: document.getElementById('c-diag').value,
-                tipo_pago: 'Particular',
-                monto_total: 150000
-            }]).select().single();
-
-            if(errC) return alert(errC.message);
-
-            // 2. Guardar Signos vinculados a la consulta
-            await _sb.from('signos').insert([{
-                id_consulta: con.id_consulta,
-                presion_arterial: document.getElementById('s-pa').value,
-                peso: document.getElementById('s-peso').value,
-                altura: document.getElementById('s-alt').value,
-                imc: document.getElementById('s-imc').value
-            }]);
-
-            alert("Consulta finalizada con éxito");
-            this.view('dashboard');
-            this.listarConsultas();
-        },
-
-        async listarConsultas() {
-            const { data } = await _sb.from('consultas').select('*, pacientes(nombre, apellido)').eq('id_medico', this.user.id_medico).order('fecha_hora', {ascending:false});
-            const div = document.getElementById('lista-consultas');
-            div.innerHTML = data.map(c => `
-                <div class="card-consulta">
-                    <strong>${c.pacientes.nombre} ${c.pacientes.apellido}</strong><br>
-                    <small>${new Date(c.fecha_hora).toLocaleString()} - Motivo: ${c.motivo_consulta}</small>
-                </div>
-            `).join('');
-        }
-    };
-</script>
-
+        };
+    </script>
 </body>
 </html>
