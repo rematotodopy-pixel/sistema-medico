@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DendritasMed v9.3 - Estable</title>
+    <title>DendritasMed v9.4 - Ultra Stable</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,16 +13,15 @@
         .timeline-item::before { content: ''; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid white; }
         .timeline-border { border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative; }
         @media print { .no-print { display: none !important; } }
-        .paper { width: 148mm; min-height: 210mm; padding: 15mm; margin: auto; background: white; position: relative; border: 1px solid #eee; }
     </style>
 
     <script>
-        // 1. CONFIGURACIÓN E INICIALIZACIÓN
+        // CONFIGURACIÓN INICIAL
         const SB_URL = 'https://iinbesofnrhpvtxmtcku.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbmJlc29mbnJocHZ0eG10Y2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ1NjIsImV4cCI6MjA4MzYyMDU2Mn0.RVB96UgGa7sscNrRurViF8dz-sMyb-9mHU9c-RDHLNY';
         const _sb = supabase.createClient(SB_URL, SB_KEY);
 
-        // 2. OBJETO DE APLICACIÓN GLOBAL
+        // OBJETO GLOBAL APP
         window.app = {
             user: null, pacienteActual: null, sedeActual: null,
 
@@ -47,7 +46,7 @@
                 data.forEach(h => {
                     const btn = document.createElement('button');
                     btn.className = "bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center shadow-sm";
-                    btn.innerHTML = `<i data-lucide="building" class="mx-auto mb-2 text-blue-500"></i><span class="font-bold text-sm uppercase">${h.nombre_hospital}</span>`;
+                    btn.innerHTML = '<i data-lucide="building" class="mx-auto mb-2 text-blue-500"></i><span class="font-bold text-sm uppercase">' + h.nombre_hospital + '</span>';
                     btn.onclick = () => this.seleccionarSede(h);
                     grid.appendChild(btn);
                 });
@@ -59,29 +58,9 @@
                 document.getElementById('hospital-selector-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('label-hospital-activa').innerText = h.nombre_hospital;
-                document.getElementById('user-name').innerText = `DR. ${this.user.nombre} ${this.user.apellido}`;
-                await this.cargarSeguros();
-                await this.cargarCiudades();
+                document.getElementById('user-name').innerText = "DR. " + this.user.nombre + " " + this.user.apellido;
                 this.view('dashboard');
                 this.actualizarDashboard();
-            },
-
-            async cargarSeguros() {
-                const { data } = await _sb.from('seguros').select('*').order('nombre_seguro');
-                const sel = document.getElementById('p-id-seguro');
-                if(sel) {
-                    sel.innerHTML = '<option value="">PARTICULAR</option>';
-                    data.forEach(s => sel.innerHTML += `<option value="${s.id_seguro}">${s.nombre_seguro}</option>`);
-                }
-            },
-
-            async cargarCiudades() {
-                const { data } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
-                const sel = document.getElementById('p-id-ciudad');
-                if(sel) {
-                    sel.innerHTML = '<option value="">-- CIUDAD --</option>';
-                    data.forEach(c => sel.innerHTML += `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`);
-                }
             },
 
             view(name) {
@@ -94,19 +73,19 @@
             async buscarPaciente() {
                 const q = document.getElementById('c-busqueda').value;
                 if(q.length < 3) return;
-                const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or(`cedula.eq.${q},nombre.ilike.%${q}%,apellido.ilike.%${q}%`).limit(5);
+                const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or('cedula.eq.'+q+',nombre.ilike.%'+q+'%,apellido.ilike.%'+q+'%').limit(5);
                 const list = document.getElementById('c-lista-busqueda');
                 list.innerHTML = "";
                 if(data && data.length > 0) {
                     list.classList.remove('hidden');
                     data.forEach(p => {
                         const d = document.createElement('div');
-                        d.className = "p-4 hover:bg-blue-50 cursor-pointer border-b";
-                        d.innerHTML = `<b>${p.nombre} ${p.apellido}</b> - CI: ${p.cedula}`;
+                        d.className = "p-4 hover:bg-blue-50 cursor-pointer border-b text-sm";
+                        d.innerHTML = "<b>" + p.nombre + " " + p.apellido + "</b> - CI: " + p.cedula;
                         d.onclick = () => {
                             this.pacienteActual = p;
                             document.getElementById('c-paciente-box').classList.remove('hidden');
-                            document.getElementById('c-paciente-info').innerText = `${p.nombre} ${p.apellido}`;
+                            document.getElementById('c-paciente-info').innerText = p.nombre + " " + p.apellido;
                             document.getElementById('c-paciente-seguro-tag').innerText = p.seguros?.nombre_seguro || "PARTICULAR";
                             list.classList.add('hidden');
                             this.cargarHistorial(p.id_paciente);
@@ -121,7 +100,7 @@
                 const list = document.getElementById('c-historial-lista');
                 list.innerHTML = "";
                 data.forEach(c => {
-                    list.innerHTML += `<div class='timeline-item relative pl-4 border-l mb-4'><p class='text-[10px] text-blue-600 font-bold'>${new Date(c.fecha_hora).toLocaleDateString()}</p><p class='text-xs'>${c.diagnostico || 'Evolución'}</p></div>`;
+                    list.innerHTML += "<div class='timeline-item relative pl-4 border-l mb-4'><p class='text-[10px] text-blue-600 font-bold'>" + new Date(c.fecha_hora).toLocaleDateString() + "</p><p class='text-xs'>" + (c.diagnostico || 'Evolución') + "</p></div>";
                 });
             },
 
@@ -143,8 +122,6 @@
                 const { data, error } = await _sb.from('consultas').insert([payload]).select().single();
                 if(data) {
                     if(payload.receta) this.imprimirDoc('RECETA', payload.receta);
-                    if(payload.orden_estudio) this.imprimirDoc('ORDEN DE ESTUDIO', payload.orden_estudio);
-                    if(payload.reposo_dias) this.imprimirDoc('REPOSO', `Días: ${payload.reposo_dias}\nMotivo: ${payload.reposo_motivo}`);
                     alert("Consulta guardada.");
                     location.reload();
                 } else alert(error.message);
@@ -152,32 +129,13 @@
 
             imprimirDoc(tipo, contenido) {
                 const v = window.open('', '_blank');
-                const esReceta = tipo === 'RECETA';
-                const fecha = new Date().toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' });
-                
-                const html = `
-                    <html><head><title>${tipo}</title><script src="https://cdn.tailwindcss.com"></script>
-                    <style>@page { size: A5; margin: 0; } .paper { width: 148mm; min-height: 210mm; padding: 15mm; margin: auto; background: white; position: relative; }</style>
-                    </head><body class="bg-gray-100 p-4">
-                        <div class="flex justify-center mb-4 no-print"><button onclick="window.print()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold">IMPRIMIR</button></div>
-                        <div class="paper shadow-lg">
-                            <div class="border-b-4 border-blue-600 pb-4 mb-4 text-blue-900">
-                                <h1 class="text-xl font-black italic">DR. ${this.user.nombre} ${this.user.apellido}</h1>
-                                <p class="text-[9px] font-bold uppercase tracking-widest text-gray-500">Reg. Prof. N°: ${this.user.registro_profesional || '---'}</p>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2 text-[10px] mb-6 bg-gray-50 p-3 rounded">
-                                <div><b>PACIENTE:</b> ${this.pacienteActual.nombre} ${this.pacienteActual.apellido}</div>
-                                <div><b>C.I.:</b> ${this.pacienteActual.cedula}</div>
-                                <div><b>FECHA:</b> ${fecha}</div>
-                                <div><b>SEDE:</b> ${this.sedeActual.nombre_hospital}</div>
-                            </div>
-                            <div class="min-h-[350px]">
-                                ${esReceta ? '<div class="text-4xl text-blue-600 font-serif mb-4 italic">Rp/</div>' : `<h2 class="text-center font-bold underline mb-6">${tipo}</h2>`}
-                                <div class="text-sm whitespace-pre-line leading-relaxed">${contenido}</div>
-                            </div>
-                            <div class="absolute bottom-20 left-0 right-0 text-center"><div class="w-32 border-t border-gray-300 mx-auto mb-1"></div><p class="text-[8px] uppercase text-gray-400">Firma y Sello</p></div>
-                        </div>
-                    </body></html>`;
+                const fecha = new Date().toLocaleDateString('es-PY');
+                const html = "<html><head><title>Print</title><script src='https://cdn.tailwindcss.com'><\/script></head><body class='p-10'>" +
+                             "<div class='border-b-2 mb-4'><h1>DR. " + this.user.nombre + " " + this.user.apellido + "</h1></div>" +
+                             "<p><b>PACIENTE:</b> " + this.pacienteActual.nombre + " " + this.pacienteActual.apellido + "</p>" +
+                             "<p><b>FECHA:</b> " + fecha + "</p><hr class='my-4'>" +
+                             "<div class='text-lg whitespace-pre-line'>" + contenido + "</div>" +
+                             "</body></html>";
                 v.document.write(html);
                 v.document.close();
             },
@@ -185,9 +143,7 @@
             async actualizarDashboard() {
                 const hoy = new Date().toISOString().split('T')[0];
                 const { data } = await _sb.from('consultas').select('*').eq('id_hospital', this.sedeActual.id_hospital).gte('fecha_hora', hoy);
-                if(data) {
-                    document.getElementById('dash-pacientes-hoy').innerText = data.length;
-                }
+                if(data) document.getElementById('dash-pacientes-hoy').innerText = data.length;
             }
         };
 
@@ -197,72 +153,73 @@
 <body class="bg-slate-100">
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-[#0f172a]">
-        <div class="bg-white p-10 rounded-2xl w-full max-w-sm">
-            <h1 class="text-2xl font-bold mb-6 text-center">Dendritas<span class="text-blue-600">Med</span></h1>
-            <input type="email" id="login-email" placeholder="Email" class="w-full p-3 border rounded mb-3 outline-none">
-            <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-3 border rounded mb-6 outline-none">
-            <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">ENTRAR</button>
+        <div class="bg-white p-10 rounded-2xl w-full max-w-sm shadow-2xl">
+            <h1 class="text-2xl font-bold mb-6 text-center italic">Dendritas<span class="text-blue-600">Med</span></h1>
+            <div class="space-y-4">
+                <input type="email" id="login-email" placeholder="Email" class="w-full p-3 border rounded-xl outline-none">
+                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-3 border rounded-xl outline-none">
+                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold hover:bg-blue-700">ACCEDER</button>
+            </div>
         </div>
     </div>
 
     <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="w-full max-w-md p-4">
-            <h2 class="text-xl font-black text-center mb-6">SELECCIONE SEDE</h2>
+        <div class="w-full max-w-md p-6">
+            <h2 class="text-xl font-black text-center mb-6 uppercase">Seleccione Sede</h2>
             <div id="hospital-grid" class="grid grid-cols-1 gap-4"></div>
         </div>
     </div>
 
     <div id="app-content" class="hidden min-h-screen flex">
         <aside class="w-64 bg-slate-900 text-white flex flex-col no-print">
-            <div class="p-6 font-bold text-xl border-b border-slate-800">DendritasMed</div>
+            <div class="p-6 font-bold text-xl border-b border-slate-800">MENÚ</div>
             <nav class="p-4 flex-1 space-y-2">
-                <button onclick="app.view('dashboard')" class="w-full text-left p-2 hover:bg-slate-800 rounded">Dashboard</button>
-                <button onclick="app.view('consulta')" class="w-full text-left p-2 hover:bg-slate-800 rounded">Nueva Consulta</button>
+                <button onclick="app.view('dashboard')" class="w-full text-left p-3 hover:bg-slate-800 rounded-xl flex items-center"><i data-lucide="layout-grid" class="mr-2 w-4"></i> Dashboard</button>
+                <button onclick="app.view('consulta')" class="w-full text-left p-3 hover:bg-slate-800 rounded-xl flex items-center"><i data-lucide="stethoscope" class="mr-2 w-4"></i> Consulta</button>
             </nav>
             <div class="p-4 text-[10px] text-blue-400 bg-slate-800 m-2 rounded" id="label-hospital-activa"></div>
         </aside>
 
-        <main class="flex-1 p-8">
-            <header class="flex justify-between mb-8">
-                <h2 id="view-title" class="font-bold uppercase tracking-widest text-gray-400">Dashboard</h2>
-                <div id="user-name" class="font-bold text-sm bg-white px-4 py-2 rounded-full shadow-sm"></div>
+        <main class="flex-1 p-8 overflow-y-auto">
+            <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm">
+                <h2 id="view-title" class="font-bold text-gray-400 uppercase tracking-widest text-xs">Dashboard</h2>
+                <div id="user-name" class="font-bold text-sm text-blue-600"></div>
             </header>
 
             <section id="main-view">
                 <div id="view-dashboard" class="hidden">
-                    <div class="bg-white p-8 rounded-2xl shadow-sm border-t-4 border-blue-600 inline-block min-w-[200px]">
-                        <p class="text-xs font-bold text-gray-400">CONSULTAS HOY</p>
-                        <span id="dash-pacientes-hoy" class="text-4xl font-black">0</span>
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border-l-8 border-blue-600 inline-block">
+                        <p class="text-xs font-bold text-gray-400 mb-1 uppercase">Pacientes de hoy</p>
+                        <span id="dash-pacientes-hoy" class="text-5xl font-black text-slate-800">0</span>
                     </div>
                 </div>
 
                 <div id="view-consulta" class="hidden space-y-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm relative">
-                        <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Buscar paciente por CI o Nombre..." class="w-full p-4 bg-gray-50 border rounded-xl outline-none">
-                        <div id="c-lista-busqueda" class="absolute z-50 bg-white border w-[95%] mt-1 rounded-xl shadow-xl hidden"></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border relative">
+                        <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Buscar por Nombre o Cédula..." class="w-full p-4 bg-gray-50 border rounded-xl outline-none text-lg">
+                        <div id="c-lista-busqueda" class="absolute z-50 bg-white border w-[96%] mt-1 rounded-xl shadow-2xl hidden overflow-hidden"></div>
                         
-                        <div id="c-paciente-box" class="hidden mt-4 p-4 bg-slate-900 text-white rounded-xl flex justify-between items-center">
-                            <div id="c-paciente-info" class="font-bold"></div>
-                            <div id="c-paciente-seguro-tag" class="text-[10px] bg-blue-600 px-2 py-1 rounded"></div>
+                        <div id="c-paciente-box" class="hidden mt-4 p-5 bg-slate-900 text-white rounded-2xl flex justify-between items-center">
+                            <div><div id="c-paciente-info" class="font-black text-xl italic"></div><div id="c-paciente-seguro-tag" class="text-[10px] text-blue-400 font-bold uppercase"></div></div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-                        <div class="md:col-span-4 bg-white p-6 rounded-2xl shadow-sm h-fit">
-                            <h4 class="font-bold text-xs mb-4">HISTORIAL</h4>
+                        <div class="md:col-span-4 bg-white p-6 rounded-2xl shadow-sm border h-fit">
+                            <h4 class="font-bold text-xs text-gray-400 mb-4 uppercase italic">Historial</h4>
                             <div id="c-historial-lista"></div>
                         </div>
                         <div class="md:col-span-8 space-y-4">
-                            <div class="bg-white p-6 rounded-2xl shadow-sm space-y-4">
-                                <textarea id="c-motivo" placeholder="Evolución clínica..." class="w-full p-4 bg-gray-50 border rounded-xl h-32 outline-none text-sm"></textarea>
-                                <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-4 bg-gray-50 border rounded-xl h-16 outline-none text-sm font-bold"></textarea>
-                                <textarea id="c-receta" placeholder="Receta (Rp/)..." class="w-full p-4 bg-blue-50/30 border border-blue-100 rounded-xl h-24 text-sm outline-none"></textarea>
-                                <textarea id="c-estudios" placeholder="Orden de Estudios..." class="w-full p-4 bg-emerald-50/30 border border-emerald-100 rounded-xl h-20 text-sm outline-none"></textarea>
-                                <div class="flex gap-4 p-4 bg-orange-50/30 border border-orange-100 rounded-xl">
-                                    <input type="number" id="c-reposo-dias" placeholder="Días" class="w-20 p-2 border rounded text-sm">
-                                    <input type="text" id="c-reposo-motivo" placeholder="Causa" class="flex-1 p-2 border rounded text-sm">
+                            <div class="bg-white p-8 rounded-3xl shadow-sm border space-y-4">
+                                <textarea id="c-motivo" placeholder="Evolución / Motivo..." class="w-full p-4 bg-gray-50 border rounded-xl h-40 outline-none text-sm"></textarea>
+                                <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-4 bg-gray-50 border rounded-xl h-20 outline-none text-sm font-bold"></textarea>
+                                <textarea id="c-receta" placeholder="Receta Rp/..." class="w-full p-4 bg-blue-50/50 border border-blue-100 rounded-xl h-32 text-sm outline-none"></textarea>
+                                <textarea id="c-estudios" placeholder="Estudios..." class="w-full p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl h-20 text-sm outline-none"></textarea>
+                                <div class="flex gap-4 p-4 bg-orange-50/50 border border-orange-100 rounded-xl">
+                                    <input type="number" id="c-reposo-dias" placeholder="Días Reposo" class="w-24 p-2 border rounded-lg text-sm">
+                                    <input type="text" id="c-reposo-motivo" placeholder="Motivo del reposo" class="flex-1 p-2 border rounded-lg text-sm">
                                 </div>
-                                <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-black uppercase shadow-lg">Guardar e Imprimir</button>
+                                <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase text-lg shadow-xl hover:bg-blue-700 transition-all">Guardar Consulta</button>
                             </div>
                         </div>
                     </div>
@@ -270,5 +227,6 @@
             </section>
         </main>
     </div>
+
 </body>
 </html>
