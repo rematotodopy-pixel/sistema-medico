@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DendritasMed v9.1 - Final Fixed</title>
+    <title>DendritasMed v9.2 - Final Stable</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -14,203 +14,234 @@
         .timeline-border { border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative; }
         @media print { .no-print { display: none !important; } }
         select { cursor: pointer; }
+        .paper { width: 148mm; min-height: 210mm; padding: 15mm; margin: auto; background: white; position: relative; border: 1px solid #eee; }
     </style>
 
     <script>
-        // CONFIGURACIÓN GLOBAL (Accesible desde cualquier parte)
+        // 1. CONFIGURACIÓN GLOBAL E INICIALIZACIÓN
         const SB_URL = 'https://iinbesofnrhpvtxmtcku.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlpbmJlc29mbnJocHZ0eG10Y2t1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDQ1NjIsImV4cCI6MjA4MzYyMDU2Mn0.RVB96UgGa7sscNrRurViF8dz-sMyb-9mHU9c-RDHLNY';
-        var _sb;
+        
+        // Declaramos el cliente Supabase de inmediato
+        const _sb = supabase.createClient(SB_URL, SB_KEY);
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Inicializar Supabase
-            _sb = supabase.createClient(SB_URL, SB_KEY);
-            
-            // Definir APP en el objeto Window para evitar el ReferenceError
-            window.app = {
-                user: null, 
-                pacienteActual: null, 
-                sedeActual: null,
+        // Definimos el objeto APP en window para disponibilidad inmediata (evita el ReferenceError)
+        window.app = {
+            user: null, 
+            pacienteActual: null, 
+            sedeActual: null,
 
-                async handleLogin() {
-                    const email = document.getElementById('login-email').value;
-                    const pass = document.getElementById('login-pass').value;
+            async handleLogin() {
+                const email = document.getElementById('login-email').value;
+                const pass = document.getElementById('login-pass').value;
+                try {
                     const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
-                    if (error) return alert("Credenciales inválidas.");
+                    if (error) throw error;
                     
                     const { data: med } = await _sb.from('medicos').select('*').eq('email', email).maybeSingle();
                     this.user = med;
                     this.showHospitalSelector();
-                },
-
-                async showHospitalSelector() {
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('app-content').classList.add('hidden');
-                    document.getElementById('hospital-selector-screen').classList.remove('hidden');
-                    
-                    const { data } = await _sb.from('hospitales').select('*');
-                    const grid = document.getElementById('hospital-grid');
-                    grid.innerHTML = "";
-                    data.forEach(h => {
-                        const btn = document.createElement('button');
-                        btn.className = "bg-white p-8 rounded-3xl border-2 border-transparent hover:border-blue-500 hover:shadow-2xl transition-all group text-center";
-                        btn.innerHTML = `<i data-lucide="building-2" class="w-10 h-10 mx-auto mb-4 text-slate-300 group-hover:text-blue-500"></i><span class="block font-black uppercase text-slate-700 italic tracking-tighter">${h.nombre_hospital}</span>`;
-                        btn.onclick = () => this.seleccionarSede(h);
-                        grid.appendChild(btn);
-                    });
-                    lucide.createIcons();
-                },
-
-                async seleccionarSede(h) {
-                    this.sedeActual = h;
-                    document.getElementById('hospital-selector-screen').classList.add('hidden');
-                    document.getElementById('app-content').classList.remove('hidden');
-                    document.getElementById('label-hospital-activa').innerText = h.nombre_hospital;
-                    document.getElementById('user-name').innerText = `DR. ${this.user.nombre} ${this.user.apellido}`;
-                    
-                    await this.cargarSeguros();
-                    await this.cargarCiudades();
-                    this.view('dashboard');
-                    this.actualizarDashboard();
-                },
-
-                async cargarSeguros() {
-                    const { data } = await _sb.from('seguros').select('*').order('nombre_seguro');
-                    const sel = document.getElementById('p-id-seguro');
-                    if(sel) {
-                        sel.innerHTML = '<option value="">PACIENTE PARTICULAR</option>';
-                        data.forEach(s => sel.innerHTML += `<option value="${s.id_seguro}">${s.nombre_seguro}</option>`);
-                    }
-                },
-
-                async cargarCiudades() {
-                    const { data } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
-                    const sel = document.getElementById('p-id-ciudad');
-                    if(sel) {
-                        sel.innerHTML = '<option value="">-- CIUDAD --</option>';
-                        data.forEach(c => sel.innerHTML += `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`);
-                    }
-                },
-
-                view(name) {
-                    document.querySelectorAll('#main-view > div').forEach(v => v.classList.add('hidden'));
-                    document.getElementById('view-' + name).classList.remove('hidden');
-                    document.getElementById('view-title').innerText = name.toUpperCase();
-                    lucide.createIcons();
-                },
-
-                async guardarPaciente() {
-                    const p = {
-                        cedula: document.getElementById('p-cedula').value,
-                        nombre: document.getElementById('p-nombre').value,
-                        apellido: document.getElementById('p-apellido').value,
-                        fecha_nacimiento: document.getElementById('p-fecha-nac').value,
-                        telefono: document.getElementById('p-telefono').value,
-                        direccion_particular: document.getElementById('p-direccion').value,
-                        profesion: document.getElementById('p-profesion').value,
-                        estado_civil: document.getElementById('p-estado-civil').value,
-                        id_seguro_principal: document.getElementById('p-id-seguro').value || null,
-                        id_ciudad: document.getElementById('p-id-ciudad').value || null
-                    };
-                    if(!p.cedula || !p.nombre) return alert("Faltan datos obligatorios.");
-                    const { error } = await _sb.from('pacientes').insert([p]);
-                    if (error) alert(error.message);
-                    else { alert("✅ Guardado."); this.view('dashboard'); }
-                },
-
-                async buscarPaciente() {
-                    const q = document.getElementById('c-busqueda').value;
-                    if(q.length < 3) return;
-                    const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or(`cedula.eq.${q},nombre.ilike.%${q}%,apellido.ilike.%${q}%`).limit(5);
-                    const list = document.getElementById('c-lista-busqueda');
-                    list.innerHTML = "";
-                    if(data && data.length > 0) {
-                        list.classList.remove('hidden');
-                        data.forEach(p => {
-                            const d = document.createElement('div');
-                            d.className = "p-4 hover:bg-blue-50 cursor-pointer flex justify-between";
-                            d.innerHTML = `<div><b>${p.nombre} ${p.apellido}</b><br><small>${p.cedula}</small></div>`;
-                            d.onclick = () => {
-                                this.pacienteActual = p;
-                                document.getElementById('c-paciente-box').classList.remove('hidden');
-                                document.getElementById('c-paciente-info').innerText = `${p.nombre} ${p.apellido}`;
-                                document.getElementById('c-paciente-seguro-tag').innerText = p.seguros?.nombre_seguro || "PARTICULAR";
-                                if(p.fecha_nacimiento) {
-                                    const edad = new Date().getFullYear() - new Date(p.fecha_nacimiento).getFullYear();
-                                    document.getElementById('c-paciente-edad').innerText = `${edad} AÑOS`;
-                                }
-                                list.classList.add('hidden');
-                                this.cargarHistorial(p.id_paciente);
-                            };
-                            list.appendChild(d);
-                        });
-                    }
-                },
-
-                async cargarHistorial(id) {
-                    const { data } = await _sb.from('consultas').select('*').eq('id_paciente', id).order('fecha_hora', { ascending: false });
-                    const list = document.getElementById('c-historial-lista');
-                    list.innerHTML = data.length ? "" : "<p class='text-xs italic'>Sin historial.</p>";
-                    data.forEach(c => {
-                        const f = new Date(c.fecha_hora).toLocaleDateString();
-                        list.innerHTML += `<div class='timeline-item relative pl-4'><p class='text-[9px] font-black text-blue-600'>${f}</p><p class='text-xs font-bold'>${c.diagnostico || 'Control'}</p></div>`;
-                    });
-                },
-
-                calcIMC() {
-                    const p = parseFloat(document.getElementById('s-peso').value);
-                    const a = parseFloat(document.getElementById('s-alt').value);
-                    if(p && a) {
-                        const alt = a > 3 ? a / 100 : a;
-                        document.getElementById('s-imc').value = (p / (alt * alt)).toFixed(2);
-                    }
-                },
-
-                async finalizarConsulta() {
-                    if(!this.pacienteActual) return alert("Seleccione paciente.");
-                    const payload = {
-                        id_medico: this.user.id_medico,
-                        id_paciente: this.pacienteActual.id_paciente,
-                        id_hospital: this.sedeActual.id_hospital,
-                        id_seguro: this.pacienteActual.id_seguro_principal,
-                        motivo_consulta: document.getElementById('c-motivo').value,
-                        diagnostico: document.getElementById('c-diag').value,
-                        receta: document.getElementById('c-receta').value,
-                        orden_estudio: document.getElementById('c-estudios').value,
-                        reposo_dias: parseInt(document.getElementById('c-reposo-dias').value) || null,
-                        reposo_motivo: document.getElementById('c-reposo-motivo').value,
-                        tipo_pago: this.pacienteActual.id_seguro_principal ? 'Seguro' : 'Particular'
-                    };
-                    const { data, error } = await _sb.from('consultas').insert([payload]).select().single();
-                    if(data) {
-                        if(payload.receta && confirm("¿Imprimir Receta?")) this.imprimirDoc('RECETA', payload.receta);
-                        if(payload.orden_estudio && confirm("¿Imprimir Estudios?")) this.imprimirDoc('ORDEN DE ESTUDIO', payload.orden_estudio);
-                        if(payload.reposo_dias && confirm("¿Imprimir Reposo?")) this.imprimirDoc('REPOSO', `Días: ${payload.reposo_dias}\nMotivo: ${payload.reposo_motivo}`);
-                        alert("✅ Guardado.");
-                        location.reload();
-                    } else alert(error.message);
-                },
-
-                imprimirDoc(tipo, contenido) {
-                    const v = window.open('', '_blank');
-                    const esReceta = tipo === 'RECETA';
-                    const fecha = new Date().toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' });
-                    v.document.write(`<html><head><title>${tipo}</title><script src="https://cdn.tailwindcss.com"></script><style>@page { size: A5; margin: 0; } .paper { width: 148mm; min-height: 210mm; padding: 15mm; margin: auto; background: white; position: relative; } @media print { .no-print { display: none; } }</style></head><body class="bg-slate-500 p-4"><div class="no-print flex justify-center mb-4"><button onclick="window.print()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold">DESCARGAR PDF</button></div><div class="paper shadow-2xl"><div class="border-b-4 border-blue-600 pb-4 mb-6"><div><h1 class="text-2xl font-black text-blue-900 uppercase italic">DR. ${this.user.nombre} ${this.user.apellido}</h1><p class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">R.P. ${this.user.registro_profesional || '---'}</p></div></div><div class="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100 text-[11px]"><div><b>PACIENTE:</b> ${this.pacienteActual.nombre} ${this.pacienteActual.apellido}</div><div><b>C.I.:</b> ${this.pacienteActual.cedula}</div><div><b>FECHA:</b> ${fecha}</div><div><b>SEDE:</b> ${this.sedeActual.nombre_hospital}</div></div><div class="mt-4">${esReceta ? '<div class="text-5xl text-blue-600 italic font-serif mb-4">Rp/</div>' : `<h2 class="text-center text-xl font-bold underline mb-6 uppercase tracking-widest">${tipo}</h2>`}<div class="text-sm leading-relaxed whitespace-pre-line min-h-[300px]">${contenido}</div></div><div class="absolute bottom-20 left-0 right-0 text-center"><div class="w-48 border-t border-slate-300 mx-auto mb-1"></div><p class="text-[9px] uppercase font-bold text-slate-400 tracking-tighter">Firma y Sello</p></div></div></body></html>`);
-                },
-
-                async actualizarDashboard() {
-                    const hoy = new Date().toISOString().split('T')[0];
-                    const { data } = await _sb.from('consultas').select('*').eq('id_hospital', this.sedeActual.id_hospital).gte('fecha_hora', hoy);
-                    document.getElementById('dash-pacientes-hoy').innerText = data?.length || 0;
-                    document.getElementById('dash-seguros-hoy').innerText = data?.filter(c => c.tipo_pago === 'Seguro').length || 0;
-                    document.getElementById('dash-particulares-hoy').innerText = data?.filter(c => c.tipo_pago === 'Particular').length || 0;
+                } catch (e) {
+                    alert("Acceso denegado: " + e.message);
                 }
-            };
+            },
 
-            lucide.createIcons();
-        });
+            async showHospitalSelector() {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.add('hidden');
+                document.getElementById('hospital-selector-screen').classList.remove('hidden');
+                
+                const { data } = await _sb.from('hospitales').select('*');
+                const grid = document.getElementById('hospital-grid');
+                grid.innerHTML = "";
+                data.forEach(h => {
+                    const btn = document.createElement('button');
+                    btn.className = "bg-white p-8 rounded-3xl border-2 border-transparent hover:border-blue-500 hover:shadow-2xl transition-all group text-center";
+                    btn.innerHTML = `<i data-lucide="building-2" class="w-10 h-10 mx-auto mb-4 text-slate-300 group-hover:text-blue-500"></i><span class="block font-black uppercase text-slate-700 italic tracking-tighter">${h.nombre_hospital}</span>`;
+                    btn.onclick = () => this.seleccionarSede(h);
+                    grid.appendChild(btn);
+                });
+                lucide.createIcons();
+            },
+
+            async seleccionarSede(h) {
+                this.sedeActual = h;
+                document.getElementById('hospital-selector-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                document.getElementById('label-hospital-activa').innerText = h.nombre_hospital;
+                document.getElementById('user-name').innerText = `DR. ${this.user.nombre} ${this.user.apellido}`;
+                
+                await this.cargarSeguros();
+                await this.cargarCiudades();
+                this.view('dashboard');
+                this.actualizarDashboard();
+            },
+
+            async cargarSeguros() {
+                const { data } = await _sb.from('seguros').select('*').order('nombre_seguro');
+                const sel = document.getElementById('p-id-seguro');
+                if(sel) {
+                    sel.innerHTML = '<option value="">PACIENTE PARTICULAR</option>';
+                    data.forEach(s => sel.innerHTML += `<option value="${s.id_seguro}">${s.nombre_seguro}</option>`);
+                }
+            },
+
+            async cargarCiudades() {
+                const { data } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
+                const sel = document.getElementById('p-id-ciudad');
+                if(sel) {
+                    sel.innerHTML = '<option value="">-- CIUDAD --</option>';
+                    data.forEach(c => sel.innerHTML += `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`);
+                }
+            },
+
+            view(name) {
+                document.querySelectorAll('#main-view > div').forEach(v => v.classList.add('hidden'));
+                document.getElementById('view-' + name).classList.remove('hidden');
+                document.getElementById('view-title').innerText = name.toUpperCase();
+                lucide.createIcons();
+            },
+
+            async guardarPaciente() {
+                const p = {
+                    cedula: document.getElementById('p-cedula').value,
+                    nombre: document.getElementById('p-nombre').value,
+                    apellido: document.getElementById('p-apellido').value,
+                    fecha_nacimiento: document.getElementById('p-fecha-nac').value,
+                    telefono: document.getElementById('p-telefono').value,
+                    direccion_particular: document.getElementById('p-direccion').value,
+                    id_seguro_principal: document.getElementById('p-id-seguro').value || null,
+                    id_ciudad: document.getElementById('p-id-ciudad').value || null
+                };
+                if(!p.cedula || !p.nombre) return alert("Cédula y Nombre son obligatorios.");
+                const { error } = await _sb.from('pacientes').insert([p]);
+                if (error) alert(error.message);
+                else { alert("✅ Registrado."); this.view('dashboard'); }
+            },
+
+            async buscarPaciente() {
+                const q = document.getElementById('c-busqueda').value;
+                if(q.length < 3) return;
+                const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or(`cedula.eq.${q},nombre.ilike.%${q}%,apellido.ilike.%${q}%`).limit(5);
+                const list = document.getElementById('c-lista-busqueda');
+                list.innerHTML = "";
+                if(data && data.length > 0) {
+                    list.classList.remove('hidden');
+                    data.forEach(p => {
+                        const d = document.createElement('div');
+                        d.className = "p-4 hover:bg-blue-50 cursor-pointer flex justify-between";
+                        d.innerHTML = `<div><b>${p.nombre} ${p.apellido}</b><br><small>${p.cedula}</small></div>`;
+                        d.onclick = () => {
+                            this.pacienteActual = p;
+                            document.getElementById('c-paciente-box').classList.remove('hidden');
+                            document.getElementById('c-paciente-info').innerText = `${p.nombre} ${p.apellido}`;
+                            document.getElementById('c-paciente-seguro-tag').innerText = p.seguros?.nombre_seguro || "PARTICULAR";
+                            if(p.fecha_nacimiento) {
+                                const edad = new Date().getFullYear() - new Date(p.fecha_nacimiento).getFullYear();
+                                document.getElementById('c-paciente-edad').innerText = `${edad} AÑOS`;
+                            }
+                            list.classList.add('hidden');
+                            this.cargarHistorial(p.id_paciente);
+                        };
+                        list.appendChild(d);
+                    });
+                }
+                lucide.createIcons();
+            },
+
+            async cargarHistorial(id) {
+                const { data } = await _sb.from('consultas').select('*').eq('id_paciente', id).order('fecha_hora', { ascending: false });
+                const list = document.getElementById('c-historial-lista');
+                list.innerHTML = data.length ? "" : "<p class='text-xs italic'>Sin historial previo.</p>";
+                data.forEach(c => {
+                    const f = new Date(c.fecha_hora).toLocaleDateString();
+                    list.innerHTML += `<div class='timeline-item relative pl-4'><p class='text-[9px] font-black text-blue-600'>${f}</p><p class='text-xs font-bold'>${c.diagnostico || 'Evolución'}</p></div>`;
+                });
+            },
+
+            calcIMC() {
+                const p = parseFloat(document.getElementById('s-peso').value);
+                const a = parseFloat(document.getElementById('s-alt').value);
+                if(p && a) {
+                    const alt = a > 3 ? a / 100 : a;
+                    document.getElementById('s-imc').value = (p / (alt * alt)).toFixed(2);
+                }
+            },
+
+            async finalizarConsulta() {
+                if(!this.pacienteActual) return alert("Seleccione paciente.");
+                const payload = {
+                    id_medico: this.user.id_medico,
+                    id_paciente: this.pacienteActual.id_paciente,
+                    id_hospital: this.sedeActual.id_hospital,
+                    id_seguro: this.pacienteActual.id_seguro_principal,
+                    motivo_consulta: document.getElementById('c-motivo').value,
+                    diagnostico: document.getElementById('c-diag').value,
+                    receta: document.getElementById('c-receta').value,
+                    orden_estudio: document.getElementById('c-estudios').value,
+                    reposo_dias: parseInt(document.getElementById('c-reposo-dias').value) || null,
+                    reposo_motivo: document.getElementById('c-reposo-motivo').value,
+                    tipo_pago: this.pacienteActual.id_seguro_principal ? 'Seguro' : 'Particular'
+                };
+                const { data, error } = await _sb.from('consultas').insert([payload]).select().single();
+                if(data) {
+                    if(payload.receta && confirm("¿Imprimir Receta?")) this.imprimirDoc('RECETA', payload.receta);
+                    if(payload.orden_estudio && confirm("¿Imprimir Orden de Estudio?")) this.imprimirDoc('ORDEN DE ESTUDIO', payload.orden_estudio);
+                    if(payload.reposo_dias && confirm("¿Imprimir Reposo?")) this.imprimirDoc('REPOSO', `Se indica reposo médico por ${payload.reposo_dias} días.\nMotivo: ${payload.reposo_motivo}`);
+                    alert("✅ Consulta Guardada.");
+                    location.reload();
+                } else alert(error.message);
+            },
+
+            imprimirDoc(tipo, contenido) {
+                const v = window.open('', '_blank');
+                const esReceta = tipo === 'RECETA';
+                const fecha = new Date().toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' });
+                
+                v.document.write(`
+                    <html>
+                    <head><title>${tipo}</title><script src="https://cdn.tailwindcss.com"></script>
+                    <style>@page { size: A5; margin: 0; } .paper { width: 148mm; min-height: 210mm; padding: 15mm; margin: auto; background: white; position: relative; } @media print { .no-print { display: none; } }</style>
+                    </head>
+                    <body class="bg-slate-500 p-4">
+                        <div class="no-print flex justify-center mb-4"><button onclick="window.print()" class="bg-blue-600 text-white px-8 py-2 rounded-full font-bold shadow-xl">IMPRIMIR PDF</button></div>
+                        <div class="paper shadow-2xl">
+                            <div class="border-b-4 border-blue-600 pb-4 mb-6">
+                                <h1 class="text-2xl font-black text-blue-900 uppercase italic leading-none">DR. ${this.user.nombre} ${this.user.apellido}</h1>
+                                <p class="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Reg. Prof. N°: ${this.user.registro_profesional || '---'}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 rounded-xl border border-slate-100 text-[11px]">
+                                <div><b>PACIENTE:</b> ${this.pacienteActual.nombre} ${this.pacienteActual.apellido}</div>
+                                <div><b>C.I.:</b> ${this.pacienteActual.cedula}</div>
+                                <div><b>FECHA:</b> ${fecha}</div>
+                                <div><b>SEDE:</b> ${this.sedeActual.nombre_hospital}</div>
+                            </div>
+                            <div class="mt-4">
+                                ${esReceta ? '<div class="text-5xl text-blue-600 italic font-serif mb-4">Rp/</div>' : `<h2 class="text-center text-xl font-bold underline mb-6 uppercase tracking-widest">${tipo}</h2>`}
+                                <div class="text-sm leading-relaxed whitespace-pre-line min-h-[350px] px-2 font-medium">${contenido}</div>
+                            </div>
+                            <div class="absolute bottom-20 left-0 right-0 text-center"><div class="w-48 border-t border-slate-300 mx-auto mb-1"></div><p class="text-[9px] uppercase font-bold text-slate-400">Firma y Sello</p></div>
+                        </div>
+                    </body></html>
+                `);
+            },
+
+            async actualizarDashboard() {
+                const hoy = new Date().toISOString().split('T')[0];
+                const { data } = await _sb.from('consultas').select('*').eq('id_hospital', this.sedeActual.id_hospital).gte('fecha_hora', hoy);
+                if(data) {
+                    document.getElementById('dash-pacientes-hoy').innerText = data.length;
+                    document.getElementById('dash-seguros-hoy').innerText = data.filter(c => c.tipo_pago === 'Seguro').length;
+                    document.getElementById('dash-particulares-hoy').innerText = data.filter(c => c.tipo_pago === 'Particular').length;
+                }
+            }
+        };
+
+        // Inicialización de Iconos al cargar
+        document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
     </script>
 </head>
+
 <body class="bg-slate-100 text-slate-900">
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-[#0f172a] px-4">
@@ -222,14 +253,14 @@
             <div class="space-y-4">
                 <input type="email" id="login-email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-xl outline-none">
                 <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-xl outline-none">
-                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all">ACCEDER</button>
+                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all uppercase tracking-widest">Entrar al Sistema</button>
             </div>
         </div>
     </div>
 
     <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center bg-slate-100 px-4">
         <div class="max-w-xl w-full text-center">
-            <h2 class="text-2xl font-black text-slate-800 mb-8 uppercase italic tracking-tighter">¿Sede de Atención hoy?</h2>
+            <h2 class="text-2xl font-black text-slate-800 mb-8 uppercase italic tracking-tighter">¿Dónde está atendiendo hoy?</h2>
             <div id="hospital-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
     </div>
@@ -238,94 +269,91 @@
         <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col no-print">
             <div class="p-6 border-b border-slate-800 text-white font-bold text-xl italic">DendritasMed</div>
             <nav class="flex-1 p-4 space-y-1">
-                <button onclick="app.view('dashboard')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="layout-grid" class="mr-3 w-4"></i> Inicio</button>
-                <button onclick="app.view('paciente')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="user-plus" class="mr-3 w-4"></i> Pacientes</button>
-                <button onclick="app.view('consulta')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center"><i data-lucide="stethoscope" class="mr-3 w-4"></i> Consulta</button>
+                <button onclick="app.view('dashboard')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center transition"><i data-lucide="layout-grid" class="mr-3 w-4"></i> Dashboard</button>
+                <button onclick="app.view('paciente')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center transition"><i data-lucide="user-plus" class="mr-3 w-4"></i> Pacientes</button>
+                <button onclick="app.view('consulta')" class="w-full text-left p-3 rounded-lg hover:bg-slate-800 flex items-center transition"><i data-lucide="stethoscope" class="mr-3 w-4"></i> Nueva Consulta</button>
             </nav>
-            <div class="p-4 bg-slate-800/50 m-4 rounded-xl text-xs">
-                <p class="text-slate-500 uppercase font-bold mb-1">Sede</p>
-                <p id="label-hospital-activa" class="text-blue-400 font-bold truncate">---</p>
+            <div class="p-4 bg-slate-800/50 m-4 rounded-xl border border-slate-700">
+                <p class="text-[9px] font-bold text-slate-500 uppercase mb-1">Sede Activa</p>
+                <p id="label-hospital-activa" class="text-xs text-blue-400 font-bold truncate italic">Sin sede</p>
             </div>
         </aside>
 
         <main class="flex-1 overflow-y-auto">
-            <header class="bg-white p-4 border-b flex justify-between items-center no-print sticky top-0 z-10">
+            <header class="bg-white p-4 border-b flex justify-between items-center sticky top-0 z-10 no-print">
                 <h2 id="view-title" class="font-black text-slate-400 uppercase text-[10px] tracking-widest italic">Dashboard</h2>
                 <span id="user-name" class="text-xs font-bold bg-blue-50 text-blue-700 px-4 py-2 rounded-full border border-blue-100 italic">---</span>
             </header>
 
             <section id="main-view" class="p-8 max-w-7xl mx-auto">
-                
-                <div id="view-dashboard" class="hidden animate-in fade-in">
+                <div id="view-dashboard" class="hidden">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-3xl border border-t-4 border-t-blue-600 shadow-sm text-center">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Consultas Hoy</p>
-                            <span id="dash-pacientes-hoy" class="text-3xl font-black">0</span>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm border-t-4 border-blue-600">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Total Consultas Hoy</p>
+                            <span id="dash-pacientes-hoy" class="text-3xl font-black block mt-2">0</span>
                         </div>
-                        <div class="bg-white p-6 rounded-3xl border border-t-4 border-t-emerald-500 shadow-sm text-center">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Seguros</p>
-                            <span id="dash-seguros-hoy" class="text-3xl font-black">0</span>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm border-t-4 border-emerald-500">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Vía Seguros</p>
+                            <span id="dash-seguros-hoy" class="text-3xl font-black block mt-2">0</span>
                         </div>
-                        <div class="bg-white p-6 rounded-3xl border border-t-4 border-t-orange-500 shadow-sm text-center">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Particulares</p>
-                            <span id="dash-particulares-hoy" class="text-3xl font-black">0</span>
+                        <div class="bg-white p-6 rounded-3xl border shadow-sm border-t-4 border-orange-500">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Particulares</p>
+                            <span id="dash-particulares-hoy" class="text-3xl font-black block mt-2">0</span>
                         </div>
                     </div>
                 </div>
 
                 <div id="view-paciente" class="hidden animate-in slide-in-from-bottom-2">
                     <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-                        <h3 class="text-xl font-bold mb-8 uppercase italic"><i data-lucide="user-plus" class="inline w-5"></i> Registro Integral</h3>
+                        <h3 class="text-xl font-bold mb-8 uppercase italic"><i data-lucide="user-plus" class="inline w-5"></i> Registrar Nuevo Paciente</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <input type="text" id="p-cedula" placeholder="Cédula" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="text" id="p-nombre" placeholder="Nombre" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="text" id="p-apellido" placeholder="Apellido" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="text" id="p-telefono" placeholder="Teléfono" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <select id="p-id-ciudad" class="w-full p-3 bg-slate-50 border rounded-xl"></select>
-                            <select id="p-id-seguro" class="w-full p-3 bg-blue-50 border-blue-100 rounded-xl font-bold"></select>
-                            <input type="text" id="p-profesion" placeholder="Profesión" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="text" id="p-estado-civil" placeholder="Estado Civil" class="w-full p-3 bg-slate-50 border rounded-xl">
-                            <input type="text" id="p-direccion" placeholder="Dirección" class="w-full md:col-span-3 p-3 bg-slate-50 border rounded-xl">
+                            <input type="text" id="p-cedula" placeholder="N° Cédula" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            <input type="text" id="p-nombre" placeholder="Nombre" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            <input type="text" id="p-apellido" placeholder="Apellido" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            <input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            <input type="text" id="p-telefono" placeholder="Teléfono / WhatsApp" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            <select id="p-id-ciudad" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></select>
+                            <select id="p-id-seguro" class="w-full p-3 bg-blue-50 border-blue-100 rounded-xl font-bold outline-none"></select>
+                            <input type="text" id="p-direccion" placeholder="Dirección Particular" class="w-full md:col-span-2 p-3 bg-slate-50 border rounded-xl outline-none">
                         </div>
-                        <button onclick="app.guardarPaciente()" class="w-full bg-slate-900 text-white p-4 rounded-2xl font-black mt-10 hover:bg-blue-600 transition-all uppercase tracking-widest">Registrar Paciente</button>
+                        <button onclick="app.guardarPaciente()" class="w-full bg-slate-900 text-white p-4 rounded-2xl font-black mt-10 hover:bg-blue-600 transition-all uppercase">Guardar en Base de Datos</button>
                     </div>
                 </div>
 
-                <div id="view-consulta" class="hidden space-y-6 animate-in fade-in">
+                <div id="view-consulta" class="hidden space-y-6">
                     <div class="bg-white p-6 rounded-2xl border shadow-sm relative">
-                        <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Buscar por Nombre o CI..." class="w-full p-4 bg-slate-50 border rounded-2xl text-lg outline-none">
-                        <div id="c-lista-busqueda" class="mt-2 hidden border rounded-xl overflow-hidden divide-y bg-white shadow-2xl absolute z-20 w-[95%]"></div>
+                        <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Buscar paciente por Cédula o Nombre..." class="w-full p-4 bg-slate-50 border rounded-2xl text-lg outline-none">
+                        <div id="c-lista-busqueda" class="mt-2 hidden border rounded-xl overflow-hidden divide-y bg-white shadow-2xl absolute z-20 w-[96%]"></div>
                         <div id="c-paciente-box" class="mt-4 hidden p-6 bg-slate-900 text-white rounded-3xl flex justify-between items-center">
-                            <div><h3 id="c-paciente-info" class="text-xl font-black italic"></h3><p id="c-paciente-seguro-tag" class="text-xs text-blue-400 font-bold"></p></div>
-                            <div id="c-paciente-edad" class="text-2xl font-black italic opacity-50"></div>
+                            <div><h3 id="c-paciente-info" class="text-xl font-black italic"></h3><p id="c-paciente-seguro-tag" class="text-xs text-blue-400 font-bold uppercase"></p></div>
+                            <div id="c-paciente-edad" class="text-2xl font-black italic text-slate-500"></div>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div class="lg:col-span-4 bg-white p-6 rounded-3xl border shadow-sm h-fit">
-                            <h4 class="font-black text-slate-800 text-xs uppercase mb-6 flex items-center gap-2 italic"><i data-lucide="history" class="w-4 h-4 text-blue-600"></i> Historial</h4>
+                            <h4 class="font-black text-slate-800 text-xs uppercase mb-6 flex items-center gap-2 italic"><i data-lucide="history" class="w-4 h-4 text-blue-600"></i> Historial Médico</h4>
                             <div id="c-historial-lista" class="timeline-border space-y-6"></div>
                         </div>
                         <div class="lg:col-span-8 space-y-6">
                             <div class="bg-white p-8 rounded-3xl border shadow-sm space-y-6">
                                 <div class="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl">
-                                    <input type="text" id="s-pa" placeholder="PA" class="p-2 border-b bg-transparent outline-none text-xs font-bold">
-                                    <input type="number" id="s-peso" oninput="app.calcIMC()" placeholder="Kg" class="p-2 border-b bg-transparent outline-none text-xs font-bold">
-                                    <input type="number" id="s-alt" oninput="app.calcIMC()" step="0.01" placeholder="Mts" class="p-2 border-b bg-transparent outline-none text-xs font-bold">
+                                    <input type="text" id="s-pa" placeholder="Presión Art." class="p-2 border-b bg-transparent outline-none text-xs font-bold">
+                                    <input type="number" id="s-peso" oninput="app.calcIMC()" placeholder="Peso (Kg)" class="p-2 border-b bg-transparent outline-none text-xs font-bold">
+                                    <input type="number" id="s-alt" oninput="app.calcIMC()" step="0.01" placeholder="Altura (M)" class="p-2 border-b bg-transparent outline-none text-xs font-bold">
                                     <input type="text" id="s-imc" readonly placeholder="IMC" class="p-2 border-b bg-transparent text-blue-600 font-black text-xs">
                                 </div>
-                                <textarea id="c-motivo" placeholder="Evolución Clínica..." class="w-full p-4 bg-slate-50 border rounded-2xl h-32 outline-none text-sm"></textarea>
-                                <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-4 bg-slate-50 border rounded-2xl h-16 outline-none text-sm font-bold"></textarea>
-                                <div class="space-y-3">
-                                    <textarea id="c-receta" class="w-full bg-blue-50/50 p-4 rounded-xl border border-blue-100 text-xs h-20" placeholder="Rp/ Receta..."></textarea>
-                                    <textarea id="c-estudios" class="w-full bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-xs h-20" placeholder="Orden de Estudios..."></textarea>
-                                    <div class="flex gap-2 p-4 bg-orange-50/50 border border-orange-100 rounded-xl">
-                                        <input type="number" id="c-reposo-dias" placeholder="Días" class="w-16 p-2 text-xs rounded border bg-white">
-                                        <input type="text" id="c-reposo-motivo" placeholder="Causa del reposo" class="flex-1 p-2 text-xs rounded border bg-white">
+                                <textarea id="c-motivo" placeholder="Evolución del paciente / Motivo de consulta..." class="w-full p-4 bg-slate-50 border rounded-2xl h-32 outline-none text-sm"></textarea>
+                                <textarea id="c-diag" placeholder="Diagnóstico Final..." class="w-full p-4 bg-slate-50 border rounded-2xl h-16 outline-none text-sm font-bold"></textarea>
+                                <div class="space-y-4">
+                                    <textarea id="c-receta" class="w-full bg-blue-50/50 p-4 rounded-xl border border-blue-100 text-xs h-24" placeholder="Rp/ Escriba aquí la receta..."></textarea>
+                                    <textarea id="c-estudios" class="w-full bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 text-xs h-20" placeholder="Solicitud de Estudios..."></textarea>
+                                    <div class="flex gap-4 p-4 bg-orange-50/50 border border-orange-100 rounded-xl">
+                                        <input type="number" id="c-reposo-dias" placeholder="Días de Reposo" class="w-32 p-2 text-xs rounded border bg-white outline-none">
+                                        <input type="text" id="c-reposo-motivo" placeholder="Causa del certificado" class="flex-1 p-2 text-xs rounded border bg-white outline-none">
                                     </div>
                                 </div>
-                                <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-5 rounded-3xl font-black text-lg shadow-xl hover:bg-blue-700 uppercase italic tracking-tighter">Finalizar Consulta</button>
+                                <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-5 rounded-3xl font-black text-lg shadow-xl hover:bg-blue-700 transition-all uppercase tracking-tighter italic">Finalizar y Generar Documentos</button>
                             </div>
                         </div>
                     </div>
