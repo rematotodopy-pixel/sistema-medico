@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DendritasMed v9.7 - Full Access</title>
+    <title>DendritasMed v9.9 - Full Data Patient</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,11 +11,11 @@
 
     <style>
         .timeline-item::before { content: ''; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid white; }
-        .timeline-border { border-left: 2px solid #e2e8f0; margin-left: 10px; position: relative; }
         @media print { .no-print { display: none !important; } }
-        /* Forzar que las vistas se oculten correctamente */
         .app-view { display: none; }
         .app-view.active { display: block; }
+        input, select, textarea { transition: all 0.2s; }
+        input:focus, select:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
     </style>
 
     <script>
@@ -24,13 +24,13 @@
         const _sb = supabase.createClient(SB_URL, SB_KEY);
 
         window.app = {
-            user: null, pacienteActual: null, sedeActual: null,
+            user: null, sedeActual: null, pacienteActual: null,
 
             async handleLogin() {
                 const email = document.getElementById('login-email').value;
                 const pass = document.getElementById('login-pass').value;
                 try {
-                    const { data, error } = await _sb.auth.signInWithPassword({ email: email, password: pass });
+                    const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
                     if (error) throw error;
                     const { data: med } = await _sb.from('medicos').select('*').eq('email', email).maybeSingle();
                     this.user = med;
@@ -46,7 +46,7 @@
                 grid.innerHTML = "";
                 data.forEach(h => {
                     const btn = document.createElement('button');
-                    btn.className = "bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center shadow-sm";
+                    btn.className = "bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center shadow-sm hover:shadow-md";
                     btn.innerHTML = '<i data-lucide="building" class="mx-auto mb-2 text-blue-500"></i><span class="font-bold text-sm uppercase">' + h.nombre_hospital + '</span>';
                     btn.onclick = () => this.seleccionarSede(h);
                     grid.appendChild(btn);
@@ -60,41 +60,26 @@
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('label-hospital-activa').innerText = h.nombre_hospital;
                 document.getElementById('user-name').innerText = "DR. " + this.user.nombre + " " + this.user.apellido;
-                
-                await this.cargarSeguros();
-                await this.cargarCiudades();
+                await this.cargarCatalogos();
                 this.view('dashboard');
-                this.actualizarDashboard();
             },
 
-            async cargarSeguros() {
-                const { data } = await _sb.from('seguros').select('*').order('nombre_seguro');
-                const sel = document.getElementById('p-id-seguro');
-                if(sel) {
-                    sel.innerHTML = '<option value="">PARTICULAR</option>';
-                    data.forEach(s => sel.innerHTML += '<option value="'+s.id_seguro+'">'+s.nombre_seguro+'</option>');
-                }
-            },
+            async cargarCatalogos() {
+                const { data: segs } = await _sb.from('seguros').select('*').order('nombre_seguro');
+                const sSel = document.getElementById('p-id-seguro');
+                sSel.innerHTML = '<option value="">PARTICULAR / SIN SEGURO</option>';
+                segs.forEach(s => sSel.innerHTML += '<option value="'+s.id_seguro+'">'+s.nombre_seguro+'</option>');
 
-            async cargarCiudades() {
-                const { data } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
-                const sel = document.getElementById('p-id-ciudad');
-                if(sel) {
-                    sel.innerHTML = '<option value="">-- CIUDAD --</option>';
-                    data.forEach(c => sel.innerHTML += '<option value="'+c.id_ciudad+'">'+c.nombre_ciudad+'</option>');
-                }
+                const { data: ciuds } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
+                const cSel = document.getElementById('p-id-ciudad');
+                cSel.innerHTML = '<option value="">-- SELECCIONAR CIUDAD --</option>';
+                ciuds.forEach(c => cSel.innerHTML += '<option value="'+c.id_ciudad+'">'+c.nombre_ciudad+'</option>');
             },
 
             view(name) {
-                // Ocultar todas las vistas usando la clase app-view
                 document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
-                
-                // Mostrar la vista objetivo
-                const target = document.getElementById('view-' + name);
-                if(target) {
-                    target.classList.add('active');
-                    document.getElementById('view-title').innerText = name.toUpperCase();
-                }
+                document.getElementById('view-' + name).classList.add('active');
+                document.getElementById('view-title').innerText = name.toUpperCase();
                 lucide.createIcons();
             },
 
@@ -103,193 +88,150 @@
                     cedula: document.getElementById('p-cedula').value,
                     nombre: document.getElementById('p-nombre').value,
                     apellido: document.getElementById('p-apellido').value,
-                    fecha_nacimiento: document.getElementById('p-fecha-nac').value,
+                    fecha_nacimiento: document.getElementById('p-fecha-nac').value || null,
+                    sexo: document.getElementById('p-sexo').value,
+                    estado_civil: document.getElementById('p-estado-civil').value,
+                    telefono: document.getElementById('p-telefono').value,
+                    direccion_particular: document.getElementById('p-direccion').value,
+                    id_ciudad: document.getElementById('p-id-ciudad').value || null,
+                    profesion: document.getElementById('p-profesion').value,
                     id_seguro_principal: document.getElementById('p-id-seguro').value || null,
-                    id_ciudad: document.getElementById('p-id-ciudad').value || null
+                    created_at: new Date().toISOString()
                 };
-                if(!p.cedula || !p.nombre) return alert("Cédula y Nombre son obligatorios.");
+
+                if(!p.cedula || !p.nombre || !p.apellido) return alert("Cédula, Nombre y Apellido son requeridos.");
+
                 const { error } = await _sb.from('pacientes').insert([p]);
-                if (error) alert(error.message);
-                else { alert("Paciente registrado."); this.view('dashboard'); }
-            },
-
-            async buscarPaciente() {
-                const q = document.getElementById('c-busqueda').value;
-                if(q.length < 3) return;
-                const { data } = await _sb.from('pacientes').select('*, seguros(nombre_seguro)').or('cedula.eq.'+q+',nombre.ilike.%'+q+'%,apellido.ilike.%'+q+'%').limit(5);
-                const list = document.getElementById('c-lista-busqueda');
-                list.innerHTML = "";
-                if(data && data.length > 0) {
-                    list.classList.remove('hidden');
-                    data.forEach(p => {
-                        const d = document.createElement('div');
-                        d.className = "p-4 hover:bg-blue-50 cursor-pointer border-b text-sm";
-                        d.innerHTML = "<b>" + p.nombre + " " + p.apellido + "</b> - CI: " + p.cedula;
-                        d.onclick = () => {
-                            this.pacienteActual = p;
-                            document.getElementById('c-paciente-box').classList.remove('hidden');
-                            document.getElementById('c-paciente-info').innerText = p.nombre + " " + p.apellido;
-                            document.getElementById('c-paciente-seguro-tag').innerText = p.seguros?.nombre_seguro || "PARTICULAR";
-                            list.classList.add('hidden');
-                            this.cargarHistorial(p.id_paciente);
-                        };
-                        list.appendChild(d);
-                    });
+                if (error) {
+                    alert("Error: " + error.message);
+                } else { 
+                    alert("Paciente registrado exitosamente.");
+                    document.getElementById('form-registro').reset();
+                    this.view('dashboard'); 
                 }
-            },
-
-            async cargarHistorial(id) {
-                const { data } = await _sb.from('consultas').select('*').eq('id_paciente', id).order('fecha_hora', { ascending: false });
-                const list = document.getElementById('c-historial-lista');
-                list.innerHTML = "";
-                data.forEach(c => {
-                    list.innerHTML += "<div class='timeline-item relative pl-4 border-l mb-4'><p class='text-[10px] text-blue-600 font-bold'>" + new Date(c.fecha_hora).toLocaleDateString() + "</p><p class='text-xs'>" + (c.diagnostico || 'Evolución') + "</p></div>";
-                });
-            },
-
-            calcIMC() {
-                const p = parseFloat(document.getElementById('s-peso').value);
-                const a = parseFloat(document.getElementById('s-alt').value);
-                if(p && a) {
-                    const alt = a > 3 ? a / 100 : a;
-                    document.getElementById('s-imc').value = (p / (alt * alt)).toFixed(2);
-                }
-            },
-
-            async finalizarConsulta() {
-                if(!this.pacienteActual) return alert("Seleccione paciente.");
-                const payload = {
-                    id_medico: this.user.id_medico,
-                    id_paciente: this.pacienteActual.id_paciente,
-                    id_hospital: this.sedeActual.id_hospital,
-                    id_seguro: this.pacienteActual.id_seguro_principal,
-                    motivo_consulta: document.getElementById('c-motivo').value,
-                    diagnostico: document.getElementById('c-diag').value,
-                    receta: document.getElementById('c-receta').value,
-                    orden_estudio: document.getElementById('c-estudios').value,
-                    tipo_pago: this.pacienteActual.id_seguro_principal ? 'Seguro' : 'Particular'
-                };
-                const { data, error } = await _sb.from('consultas').insert([payload]).select().single();
-                if(data) {
-                    if(payload.receta) this.imprimirDoc('RECETA', payload.receta);
-                    alert("Consulta guardada.");
-                    location.reload();
-                } else alert(error.message);
-            },
-
-            imprimirDoc(tipo, contenido) {
-                const v = window.open('', '_blank');
-                const html = "<html><body onload='window.print()'><h1>" + tipo + "</h1><p>" + contenido + "</p></body></html>";
-                v.document.write(html);
-                v.document.close();
-            },
-
-            async actualizarDashboard() {
-                const hoy = new Date().toISOString().split('T')[0];
-                const { data } = await _sb.from('consultas').select('*').eq('id_hospital', this.sedeActual.id_hospital).gte('fecha_hora', hoy);
-                if(data) document.getElementById('dash-pacientes-hoy').innerText = data.length;
             }
         };
-
-        document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
     </script>
 </head>
-<body class="bg-slate-100">
+<body class="bg-slate-50 text-slate-900">
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-[#0f172a]">
-        <div class="bg-white p-10 rounded-2xl w-full max-w-sm shadow-2xl">
-            <h1 class="text-2xl font-bold mb-6 text-center italic">Dendritas<span class="text-blue-600">Med</span></h1>
+        <div class="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h1 class="text-3xl font-black mb-8 text-center italic">Dendritas<span class="text-blue-600">Med</span></h1>
             <div class="space-y-4">
-                <input type="email" id="login-email" placeholder="Email" class="w-full p-3 border rounded-xl outline-none">
-                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-3 border rounded-xl outline-none">
-                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">ACCEDER</button>
+                <input type="email" id="login-email" placeholder="Email Médico" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">ENTRAR</button>
             </div>
         </div>
     </div>
 
-    <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center bg-gray-100 text-center">
+    <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center bg-slate-50">
         <div class="w-full max-w-md p-6">
-            <h2 class="text-xl font-black mb-6 uppercase italic">Seleccione Sede</h2>
+            <h2 class="text-2xl font-black mb-8 text-center uppercase tracking-tighter italic text-slate-400">¿Dónde consulta hoy?</h2>
             <div id="hospital-grid" class="grid grid-cols-1 gap-4"></div>
         </div>
     </div>
 
     <div id="app-content" class="hidden min-h-screen flex">
-        <aside class="w-64 bg-slate-900 text-white flex flex-col no-print">
-            <div class="p-6 font-bold text-xl border-b border-slate-800 italic">DendritasMed</div>
-            <nav class="p-4 flex-1 space-y-3">
-                <button onclick="app.view('dashboard')" class="w-full text-left p-3 hover:bg-slate-800 rounded-xl flex items-center border-l-4 border-blue-500 bg-slate-800/50">
-                    <i data-lucide="layout-grid" class="mr-3 w-4"></i> Dashboard
-                </button>
-                <button onclick="app.view('paciente')" class="w-full text-left p-3 hover:bg-slate-800 rounded-xl flex items-center border-l-4 border-emerald-500">
-                    <i data-lucide="user-plus" class="mr-3 w-4"></i> Registrar Paciente
-                </button>
-                <button onclick="app.view('consulta')" class="w-full text-left p-3 hover:bg-slate-800 rounded-xl flex items-center border-l-4 border-orange-500">
-                    <i data-lucide="stethoscope" class="mr-3 w-4"></i> Nueva Consulta
-                </button>
+        <aside class="w-72 bg-slate-900 text-white flex flex-col no-print p-4">
+            <div class="p-4 mb-8"><h1 class="text-2xl font-black italic border-b border-slate-700 pb-2">Dendritas<span class="text-blue-400">Med</span></h1></div>
+            <nav class="flex-1 space-y-2">
+                <button onclick="app.view('dashboard')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-blue-500"><i data-lucide="layout-grid" class="mr-3"></i> Dashboard</button>
+                <button onclick="app.view('paciente')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-emerald-500"><i data-lucide="user-plus" class="mr-3"></i> Registrar Paciente</button>
+                <button onclick="app.view('consulta')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-orange-500"><i data-lucide="stethoscope" class="mr-3"></i> Nueva Consulta</button>
             </nav>
-            <div class="p-4 text-[10px] text-blue-400 bg-slate-800 m-2 rounded" id="label-hospital-activa"></div>
+            <div id="label-hospital-activa" class="mt-auto p-4 bg-slate-800 rounded-2xl text-[10px] font-bold text-blue-400 uppercase tracking-widest text-center"></div>
         </aside>
 
-        <main class="flex-1 p-8 overflow-y-auto">
-            <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm">
-                <h2 id="view-title" class="font-bold text-gray-400 uppercase tracking-widest text-xs italic">Dashboard</h2>
-                <div id="user-name" class="font-bold text-sm text-blue-600 italic"></div>
+        <main class="flex-1 p-10 overflow-y-auto">
+            <header class="flex justify-between items-end mb-10">
+                <div>
+                    <h2 id="view-title" class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">DASHBOARD</h2>
+                    <h3 id="user-name" class="text-2xl font-black text-slate-800 italic uppercase"></h3>
+                </div>
             </header>
 
             <section id="main-view">
                 <div id="view-dashboard" class="app-view active">
-                    <div class="bg-white p-8 rounded-3xl shadow-sm border-l-8 border-blue-600 inline-block">
-                        <p class="text-xs font-bold text-gray-400 mb-1 uppercase">Pacientes de hoy</p>
-                        <span id="dash-pacientes-hoy" class="text-5xl font-black text-slate-800">0</span>
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-4 border-blue-500">
+                            <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Atenciones Hoy</p>
+                            <span class="text-6xl font-black text-slate-800">0</span>
+                        </div>
                     </div>
                 </div>
 
                 <div id="view-paciente" class="app-view">
-                    <div class="bg-white p-8 rounded-3xl shadow-sm border max-w-2xl">
-                        <h3 class="text-2xl font-black mb-6 italic text-slate-800">Ficha de Registro</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="text" id="p-cedula" placeholder="N° de Cédula" class="p-3 border rounded-xl outline-none">
-                            <input type="date" id="p-fecha-nac" class="p-3 border rounded-xl outline-none">
-                            <input type="text" id="p-nombre" placeholder="Nombres" class="p-3 border rounded-xl outline-none">
-                            <input type="text" id="p-apellido" placeholder="Apellidos" class="p-3 border rounded-xl outline-none">
-                            <select id="p-id-ciudad" class="p-3 border rounded-xl outline-none"></select>
-                            <select id="p-id-seguro" class="p-3 border rounded-xl outline-none font-bold text-blue-600"></select>
+                    <form id="form-registro" class="bg-white p-10 rounded-[2.5rem] shadow-xl border max-w-4xl mx-auto">
+                        <div class="flex items-center mb-8">
+                            <div class="bg-emerald-100 p-3 rounded-2xl mr-4 text-emerald-600"><i data-lucide="user-plus"></i></div>
+                            <h3 class="text-2xl font-black italic">Nueva Ficha de Paciente</h3>
                         </div>
-                        <button onclick="app.guardarPaciente()" class="w-full mt-8 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-lg shadow-xl hover:bg-emerald-600 transition-all">Registrar en el Sistema</button>
-                    </div>
-                </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Cédula de Identidad</label>
+                                <input type="text" id="p-cedula" class="w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Nombres</label>
+                                <input type="text" id="p-nombre" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Apellidos</label>
+                                <input type="text" id="p-apellido" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase">
+                            </div>
 
-                <div id="view-consulta" class="app-view">
-                    <div class="space-y-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border relative">
-                            <input type="text" id="c-busqueda" oninput="app.buscarPaciente()" placeholder="Buscar por CI o Nombre..." class="w-full p-4 bg-gray-50 border rounded-xl outline-none text-lg">
-                            <div id="c-lista-busqueda" class="absolute z-50 bg-white border w-[96%] mt-1 rounded-xl shadow-2xl hidden"></div>
-                            <div id="c-paciente-box" class="hidden mt-4 p-5 bg-slate-900 text-white rounded-2xl flex justify-between items-center">
-                                <div><div id="c-paciente-info" class="font-black text-xl italic"></div><div id="c-paciente-seguro-tag" class="text-[10px] text-blue-400 font-bold uppercase"></div></div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Fecha de Nacimiento</label>
+                                <input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Sexo</label>
+                                <select id="p-sexo" class="w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold">
+                                    <option value="MASCULINO">MASCULINO</option>
+                                    <option value="FEMENINO">FEMENINO</option>
+                                    <option value="OTRO">OTRO</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Estado Civil</label>
+                                <select id="p-estado-civil" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                                    <option value="SOLTERO/A">SOLTERO/A</option>
+                                    <option value="CASADO/A">CASADO/A</option>
+                                    <option value="DIVORCIADO/A">DIVORCIADO/A</option>
+                                    <option value="VIUDO/A">VIUDO/A</option>
+                                </select>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Teléfono / Celular</label>
+                                <input type="text" id="p-telefono" placeholder="09xx..." class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div class="space-y-1 md:col-span-2">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Dirección Particular</label>
+                                <input type="text" id="p-direccion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Ciudad</label>
+                                <select id="p-id-ciudad" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></select>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Profesión</label>
+                                <input type="text" id="p-profesion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-bold text-blue-500 ml-2 uppercase">Seguro Médico Principal</label>
+                                <select id="p-id-seguro" class="w-full p-3 bg-blue-50 border-blue-100 border rounded-xl outline-none font-bold text-blue-600"></select>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-                            <div class="md:col-span-4 bg-white p-6 rounded-2xl shadow-sm border h-fit">
-                                <h4 class="font-bold text-xs text-gray-400 mb-4 uppercase italic">Historial</h4>
-                                <div id="c-historial-lista"></div>
-                            </div>
-                            <div class="md:col-span-8 space-y-4">
-                                <div class="bg-white p-8 rounded-3xl shadow-sm border space-y-4">
-                                    <div class="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-xl">
-                                        <input type="number" id="s-peso" oninput="app.calcIMC()" placeholder="Peso (Kg)" class="p-2 border rounded text-sm">
-                                        <input type="number" id="s-alt" oninput="app.calcIMC()" step="0.01" placeholder="Altura (M)" class="p-2 border rounded text-sm">
-                                        <input type="text" id="s-imc" readonly placeholder="IMC" class="p-2 border rounded text-sm font-bold text-blue-600">
-                                    </div>
-                                    <textarea id="c-motivo" placeholder="Evolución / Motivo..." class="w-full p-4 bg-gray-50 border rounded-xl h-40 outline-none text-sm"></textarea>
-                                    <textarea id="c-diag" placeholder="Diagnóstico..." class="w-full p-4 bg-gray-50 border rounded-xl h-16 outline-none text-sm font-bold"></textarea>
-                                    <textarea id="c-receta" placeholder="Receta Rp/..." class="w-full p-4 bg-blue-50/50 border border-blue-100 rounded-xl h-32 text-sm outline-none"></textarea>
-                                    <button onclick="app.finalizarConsulta()" class="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase text-lg shadow-xl">Finalizar e Imprimir</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                        <button type="button" onclick="app.guardarPaciente()" class="w-full mt-12 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-xl shadow-2xl hover:bg-blue-600 hover:-translate-y-1 transition-all">
+                            Finalizar Registro e Insertar
+                        </button>
+                    </form>
                 </div>
             </section>
         </main>
