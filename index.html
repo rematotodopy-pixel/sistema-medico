@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DendritasMed v9.9 - Full Data Patient</title>
+    <title>DendritasMed v10.1 - Fixed</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,11 +11,10 @@
 
     <style>
         .timeline-item::before { content: ''; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid white; }
-        @media print { .no-print { display: none !important; } }
         .app-view { display: none; }
         .app-view.active { display: block; }
         input, select, textarea { transition: all 0.2s; }
-        input:focus, select:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        input:focus { border-color: #3b82f6 !important; background-color: white !important; }
     </style>
 
     <script>
@@ -35,7 +34,7 @@
                     const { data: med } = await _sb.from('medicos').select('*').eq('email', email).maybeSingle();
                     this.user = med;
                     this.showHospitalSelector();
-                } catch (e) { alert("Error: " + e.message); }
+                } catch (e) { alert("Error de acceso."); }
             },
 
             async showHospitalSelector() {
@@ -46,7 +45,7 @@
                 grid.innerHTML = "";
                 data.forEach(h => {
                     const btn = document.createElement('button');
-                    btn.className = "bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center shadow-sm hover:shadow-md";
+                    btn.className = "bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all shadow-sm text-center";
                     btn.innerHTML = '<i data-lucide="building" class="mx-auto mb-2 text-blue-500"></i><span class="font-bold text-sm uppercase">' + h.nombre_hospital + '</span>';
                     btn.onclick = () => this.seleccionarSede(h);
                     grid.appendChild(btn);
@@ -68,12 +67,12 @@
                 const { data: segs } = await _sb.from('seguros').select('*').order('nombre_seguro');
                 const sSel = document.getElementById('p-id-seguro');
                 sSel.innerHTML = '<option value="">PARTICULAR / SIN SEGURO</option>';
-                segs.forEach(s => sSel.innerHTML += '<option value="'+s.id_seguro+'">'+s.nombre_seguro+'</option>');
+                segs.forEach(s => sSel.innerHTML += `<option value="${s.id_seguro}">${s.nombre_seguro}</option>`);
 
                 const { data: ciuds } = await _sb.from('ciudades').select('*').order('nombre_ciudad');
                 const cSel = document.getElementById('p-id-ciudad');
-                cSel.innerHTML = '<option value="">-- SELECCIONAR CIUDAD --</option>';
-                ciuds.forEach(c => cSel.innerHTML += '<option value="'+c.id_ciudad+'">'+c.nombre_ciudad+'</option>');
+                cSel.innerHTML = '<option value="">-- CIUDAD --</option>';
+                ciuds.forEach(c => cSel.innerHTML += `<option value="${c.id_ciudad}">${c.nombre_ciudad}</option>`);
             },
 
             view(name) {
@@ -84,7 +83,8 @@
             },
 
             async guardarPaciente() {
-                const p = {
+                // Objeto limpio: Solo los datos que pediste
+                const datos = {
                     cedula: document.getElementById('p-cedula').value,
                     nombre: document.getElementById('p-nombre').value,
                     apellido: document.getElementById('p-apellido').value,
@@ -96,149 +96,109 @@
                     id_ciudad: document.getElementById('p-id-ciudad').value || null,
                     profesion: document.getElementById('p-profesion').value,
                     id_seguro_principal: document.getElementById('p-id-seguro').value || null
-                    // Eliminamos created_at para evitar el error de esquema
                 };
 
-                if(!p.cedula || !p.nombre || !p.apellido) return alert("Cédula, Nombre y Apellido son requeridos.");
+                if(!datos.cedula || !datos.nombre) return alert("Faltan datos básicos.");
 
-                const { data, error } = await _sb.from('pacientes').insert([p]).select();
-                
+                // INSERT SIMPLE
+                const { error } = await _sb
+                    .from('pacientes')
+                    .insert([datos]);
+
                 if (error) {
-                    console.error(error);
-                    alert("Error de base de datos: " + error.message);
+                    console.error("Detalle del error:", error);
+                    alert("Error en Supabase: " + error.message);
                 } else { 
-                    alert("Paciente registrado exitosamente.");
+                    alert("Paciente registrado con éxito.");
                     document.getElementById('form-registro').reset();
-                    // Opcional: Ir a consulta con este paciente
-                    this.pacienteActual = data[0];
                     this.view('dashboard'); 
                 }
-            },
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
     </script>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="bg-slate-100">
 
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-[#0f172a]">
         <div class="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
             <h1 class="text-3xl font-black mb-8 text-center italic">Dendritas<span class="text-blue-600">Med</span></h1>
             <div class="space-y-4">
-                <input type="email" id="login-email" placeholder="Email Médico" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                <input type="email" id="login-email" placeholder="Email" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
                 <input type="password" id="login-pass" placeholder="Contraseña" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
-                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold text-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">ENTRAR</button>
+                <button onclick="app.handleLogin()" class="w-full bg-blue-600 text-white p-4 rounded-2xl font-bold">ENTRAR</button>
             </div>
         </div>
     </div>
 
-    <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center bg-slate-50">
+    <div id="hospital-selector-screen" class="hidden min-h-screen flex items-center justify-center">
         <div class="w-full max-w-md p-6">
-            <h2 class="text-2xl font-black mb-8 text-center uppercase tracking-tighter italic text-slate-400">¿Dónde consulta hoy?</h2>
+            <h2 class="text-xl font-black mb-8 text-center uppercase italic text-slate-400">Seleccione Sede</h2>
             <div id="hospital-grid" class="grid grid-cols-1 gap-4"></div>
         </div>
     </div>
 
     <div id="app-content" class="hidden min-h-screen flex">
-        <aside class="w-72 bg-slate-900 text-white flex flex-col no-print p-4">
-            <div class="p-4 mb-8"><h1 class="text-2xl font-black italic border-b border-slate-700 pb-2">Dendritas<span class="text-blue-400">Med</span></h1></div>
+        <aside class="w-72 bg-slate-900 text-white flex flex-col p-4">
+            <div class="p-4 mb-8 font-black text-2xl italic border-b border-slate-700">Dendritas<span class="text-blue-400">Med</span></div>
             <nav class="flex-1 space-y-2">
                 <button onclick="app.view('dashboard')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-blue-500"><i data-lucide="layout-grid" class="mr-3"></i> Dashboard</button>
                 <button onclick="app.view('paciente')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-emerald-500"><i data-lucide="user-plus" class="mr-3"></i> Registrar Paciente</button>
                 <button onclick="app.view('consulta')" class="w-full text-left p-4 hover:bg-slate-800 rounded-2xl flex items-center border-l-4 border-orange-500"><i data-lucide="stethoscope" class="mr-3"></i> Nueva Consulta</button>
             </nav>
-            <div id="label-hospital-activa" class="mt-auto p-4 bg-slate-800 rounded-2xl text-[10px] font-bold text-blue-400 uppercase tracking-widest text-center"></div>
+            <div id="label-hospital-activa" class="p-4 bg-slate-800 rounded-2xl text-[10px] font-bold text-blue-400 text-center uppercase tracking-widest mt-auto"></div>
         </aside>
 
         <main class="flex-1 p-10 overflow-y-auto">
             <header class="flex justify-between items-end mb-10">
                 <div>
-                    <h2 id="view-title" class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">DASHBOARD</h2>
+                    <h2 id="view-title" class="text-xs font-black text-slate-400 tracking-widest uppercase"></h2>
                     <h3 id="user-name" class="text-2xl font-black text-slate-800 italic uppercase"></h3>
                 </div>
             </header>
 
             <section id="main-view">
                 <div id="view-dashboard" class="app-view active">
-                    <div class="grid grid-cols-3 gap-6">
-                        <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-4 border-blue-500">
-                            <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Atenciones Hoy</p>
-                            <span class="text-6xl font-black text-slate-800">0</span>
-                        </div>
+                    <div class="bg-white p-10 rounded-[2rem] shadow-sm border-b-4 border-blue-500 inline-block min-w-[200px]">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Consultas Hoy</p>
+                        <span class="text-6xl font-black text-slate-800">0</span>
                     </div>
                 </div>
 
                 <div id="view-paciente" class="app-view">
                     <form id="form-registro" class="bg-white p-10 rounded-[2.5rem] shadow-xl border max-w-4xl mx-auto">
-                        <div class="flex items-center mb-8">
-                            <div class="bg-emerald-100 p-3 rounded-2xl mr-4 text-emerald-600"><i data-lucide="user-plus"></i></div>
-                            <h3 class="text-2xl font-black italic">Nueva Ficha de Paciente</h3>
-                        </div>
-                        
+                        <h3 class="text-2xl font-black italic mb-8 flex items-center"><i data-lucide="user-plus" class="mr-3 text-emerald-500"></i> Registro Completo</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Cédula de Identidad</label>
-                                <input type="text" id="p-cedula" class="w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Nombres</label>
-                                <input type="text" id="p-nombre" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Apellidos</label>
-                                <input type="text" id="p-apellido" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase">
-                            </div>
-
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Fecha de Nacimiento</label>
-                                <input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Sexo</label>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">CÉDULA</label><input type="text" id="p-cedula" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">NOMBRES</label><input type="text" id="p-nombre" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">APELLIDOS</label><input type="text" id="p-apellido" class="w-full p-3 bg-slate-50 border rounded-xl outline-none uppercase"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">FECHA NAC.</label><input type="date" id="p-fecha-nac" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">SEXO</label>
                                 <select id="p-sexo" class="w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold">
-                                    <option value="MASCULINO">MASCULINO</option>
-                                    <option value="FEMENINO">FEMENINO</option>
-                                    <option value="OTRO">OTRO</option>
+                                    <option value="MASCULINO">MASCULINO</option><option value="FEMENINO">FEMENINO</option>
                                 </select>
                             </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Estado Civil</label>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">ESTADO CIVIL</label>
                                 <select id="p-estado-civil" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
-                                    <option value="SOLTERO/A">SOLTERO/A</option>
-                                    <option value="CASADO/A">CASADO/A</option>
-                                    <option value="DIVORCIADO/A">DIVORCIADO/A</option>
-                                    <option value="VIUDO/A">VIUDO/A</option>
+                                    <option value="SOLTERO/A">SOLTERO/A</option><option value="CASADO/A">CASADO/A</option><option value="DIVORCIADO/A">DIVORCIADO/A</option>
                                 </select>
                             </div>
-
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Teléfono / Celular</label>
-                                <input type="text" id="p-telefono" placeholder="09xx..." class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
-                            </div>
-                            <div class="space-y-1 md:col-span-2">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Dirección Particular</label>
-                                <input type="text" id="p-direccion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
-                            </div>
-
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Ciudad</label>
-                                <select id="p-id-ciudad" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></select>
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Profesión</label>
-                                <input type="text" id="p-profesion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none">
-                            </div>
-                            <div class="space-y-1">
-                                <label class="text-[10px] font-bold text-blue-500 ml-2 uppercase">Seguro Médico Principal</label>
-                                <select id="p-id-seguro" class="w-full p-3 bg-blue-50 border-blue-100 border rounded-xl outline-none font-bold text-blue-600"></select>
-                            </div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">TELÉFONO</label><input type="text" id="p-telefono" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></div>
+                            <div class="md:col-span-2"><label class="text-[10px] font-bold text-slate-400 ml-1">DIRECCIÓN</label><input type="text" id="p-direccion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">CIUDAD</label><select id="p-id-ciudad" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></select></div>
+                            <div><label class="text-[10px] font-bold text-slate-400 ml-1">PROFESIÓN</label><input type="text" id="p-profesion" class="w-full p-3 bg-slate-50 border rounded-xl outline-none"></div>
+                            <div><label class="text-[10px] font-bold text-blue-500 ml-1">SEGURO MÉDICO</label><select id="p-id-seguro" class="w-full p-3 bg-blue-50 border rounded-xl outline-none font-bold text-blue-600"></select></div>
                         </div>
-
-                        <button type="button" onclick="app.guardarPaciente()" class="w-full mt-12 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-xl shadow-2xl hover:bg-blue-600 hover:-translate-y-1 transition-all">
-                            Finalizar Registro e Insertar
-                        </button>
+                        <button type="button" onclick="app.guardarPaciente()" class="w-full mt-12 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-xl shadow-xl hover:bg-emerald-600 transition-all">Finalizar Registro</button>
                     </form>
+                </div>
+
+                <div id="view-consulta" class="app-view text-center py-20">
+                    <p class="text-slate-400 italic">Módulo de consulta listo para conectar...</p>
                 </div>
             </section>
         </main>
     </div>
-
 </body>
 </html>
