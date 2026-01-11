@@ -95,22 +95,25 @@
                     direccion_particular: document.getElementById('p-direccion').value,
                     id_ciudad: document.getElementById('p-id-ciudad').value || null,
                     profesion: document.getElementById('p-profesion').value,
-                    id_seguro_principal: document.getElementById('p-id-seguro').value || null,
-                    created_at: new Date().toISOString()
+                    id_seguro_principal: document.getElementById('p-id-seguro').value || null
+                    // Eliminamos created_at para evitar el error de esquema
                 };
 
                 if(!p.cedula || !p.nombre || !p.apellido) return alert("Cédula, Nombre y Apellido son requeridos.");
 
-                const { error } = await _sb.from('pacientes').insert([p]);
+                const { data, error } = await _sb.from('pacientes').insert([p]).select();
+                
                 if (error) {
-                    alert("Error: " + error.message);
+                    console.error(error);
+                    alert("Error de base de datos: " + error.message);
                 } else { 
                     alert("Paciente registrado exitosamente.");
                     document.getElementById('form-registro').reset();
+                    // Opcional: Ir a consulta con este paciente
+                    this.pacienteActual = data[0];
                     this.view('dashboard'); 
                 }
-            }
-        };
+            },
     </script>
 </head>
 <body class="bg-slate-50 text-slate-900">
