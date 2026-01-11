@@ -116,6 +116,79 @@
             }
         };
 
+
+        // --- NUEVAS FUNCIONES PARA EL SCRIPT ---
+
+async buscarPacienteConsulta() {
+    const q = document.getElementById('c-busqueda').value;
+    if (q.length < 3) {
+        document.getElementById('c-lista-busqueda').classList.add('hidden');
+        return;
+    }
+
+    const { data, error } = await _sb
+        .from('pacientes')
+        .select('*, seguros(nombre_seguro)')
+        .or(`cedula.ilike.%${q}%,nombre.ilike.%${q}%,apellido.ilike.%${q}%`)
+        .limit(5);
+
+    const list = document.getElementById('c-lista-busqueda');
+    list.innerHTML = "";
+    
+    if (data && data.length > 0) {
+        list.classList.remove('hidden');
+        data.forEach(p => {
+            const div = document.createElement('div');
+            div.className = "p-4 hover:bg-blue-50 cursor-pointer border-b text-sm transition-colors";
+            div.innerHTML = `
+                <div class="font-bold">${p.nombre} ${p.apellido}</div>
+                <div class="text-[10px] text-gray-500">CI: ${p.cedula} | Seguro: ${p.seguros?.nombre_seguro || 'PARTICULAR'}</div>
+            `;
+            div.onclick = () => this.seleccionarPaciente(p);
+            list.appendChild(div);
+        });
+    }
+},
+
+seleccionarPaciente(p) {
+    this.pacienteActual = p;
+    document.getElementById('c-lista-busqueda').classList.add('hidden');
+    document.getElementById('c-paciente-box').classList.remove('hidden');
+    document.getElementById('c-paciente-info').innerText = `${p.nombre} ${p.apellido}`;
+    document.getElementById('c-paciente-seguro-tag').innerText = p.seguros?.nombre_seguro || "PARTICULAR";
+    // Limpiar campos de consulta previa
+    document.getElementById('c-motivo').value = "";
+    document.getElementById('c-diag').value = "";
+    document.getElementById('c-receta').value = "";
+},
+
+async finalizarConsulta() {
+    if (!this.pacienteActual) return alert("Primero busque y seleccione un paciente.");
+
+    const payload = {
+        id_medico: this.user.id_medico,
+        id_paciente: this.pacienteActual.id_paciente,
+        id_hospital: this.sedeActual.id_hospital,
+        id_seguro: this.pacienteActual.id_seguro_principal,
+        motivo_consulta: document.getElementById('c-motivo').value,
+        diagnostico: document.getElementById('c-diag').value,
+        receta: document.getElementById('c-receta').value,
+        fecha_hora: new Date().toISOString()
+    };
+
+    const { error } = await _sb.from('consultas').insert([payload]);
+
+    if (error) {
+        alert("Error al guardar consulta: " + error.message);
+    } else {
+        alert("Consulta guardada exitosamente.");
+        this.pacienteActual = null;
+        document.getElementById('c-paciente-box').classList.add('hidden');
+        document.getElementById('c-busqueda').value = "";
+        this.view('dashboard');
+        this.actualizarDashboard();
+    }
+}
         document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
     </script>
 </head>
@@ -195,11 +268,61 @@
                         <button type="button" onclick="app.guardarPaciente()" class="w-full mt-12 bg-slate-900 text-white p-5 rounded-2xl font-black uppercase text-xl shadow-xl hover:bg-emerald-600 transition-all">Finalizar Registro</button>
                     </form>
                 </div>
-
-                <div id="view-consulta" class="app-view text-center py-20">
-                    <p class="text-slate-400 italic">Módulo de consulta listo para conectar...</p>
+        <div id="view-consulta" class="app-view">
+            <div class="max-w-5xl mx-auto space-y-6">
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border relative">
+            <label class="text-[10px] font-black text-slate-400 ml-4 uppercase tracking-widest">Buscar Paciente para Atender</label>
+            <div class="relative mt-2">
+                <i data-lucide="search" class="absolute left-4 top-4 text-slate-300"></i>
+                <input type="text" id="c-busqueda" oninput="app.buscarPacienteConsulta()" 
+                    placeholder="Escriba Cédula o Nombre del paciente..." 
+                    class="w-full p-4 pl-12 bg-slate-50 border-none rounded-2xl outline-none text-lg focus:ring-2 focus:ring-blue-500 transition-all">
+            </div>
+            <div id="c-lista-busqueda" class="absolute z-50 bg-white border w-[calc(100%-3rem)] mt-2 rounded-2xl shadow-2xl hidden overflow-hidden"></div>
+            
+            <div id="c-paciente-box" class="hidden mt-6 p-6 bg-slate-900 text-white rounded-[1.5rem] flex justify-between items-center animate-in fade-in slide-in-from-top-4">
+                <div>
+                    <div class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Paciente en Consultorio:</div>
+                    <div id="c-paciente-info" class="font-black text-2xl italic"></div>
+                    <div id="c-paciente-seguro-tag" class="inline-block mt-2 px-3 py-1 bg-blue-600 rounded-full text-[10px] font-bold uppercase"></div>
                 </div>
-            </section>
+                <button onclick="document.getElementById('c-paciente-box').classList.add('hidden'); app.pacienteActual=null;" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x-circle"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-2 space-y-6">
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border">
+                    <h4 class="text-xs font-black text-slate-400 mb-6 uppercase tracking-widest">Datos de la Consulta</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Motivo / Evolución</label>
+                            <textarea id="c-motivo" class="w-full p-4 bg-slate-50 border-none rounded-2xl h-40 outline-none focus:ring-2 focus:ring-blue-500" placeholder="Describa el cuadro del paciente..."></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-400 ml-2 uppercase">Diagnóstico (CIE-10 o Texto)</label>
+                            <input type="text" id="c-diag" class="w-full p-4 bg-slate-50 border-none rounded-2xl outline-none font-bold text-blue-600 focus:ring-2 focus:ring-blue-500" placeholder="Ej: Hipertensión Arterial">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-blue-600 p-8 rounded-[2rem] shadow-lg text-white">
+                    <h4 class="text-xs font-black opacity-70 mb-4 uppercase tracking-widest">Tratamiento / Receta</h4>
+                    <textarea id="c-receta" class="w-full p-4 bg-blue-700/50 border-none rounded-2xl h-64 outline-none text-white placeholder-blue-300 text-sm" placeholder="Rp /..."></textarea>
+                </div>
+                
+                <button onclick="app.finalizarConsulta()" class="w-full bg-slate-900 text-white p-6 rounded-[1.5rem] font-black uppercase text-lg shadow-xl hover:bg-blue-600 hover:-translate-y-1 transition-all">
+                    Guardar Consulta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>            
+        </section>
         </main>
     </div>
 </body>
