@@ -66,27 +66,33 @@
                 this.actualizarDashboard();
             },
 
-            async cargarCatalogos() {
-                const cargar = async (tabla, idSelect, label) => {
-                    const { data } = await _sb.from(tabla).select('*').order(2);
-                    const sel = document.getElementById(idSelect);
-                    sel.innerHTML = `<option value="">-- ${label} --</option>`;
-                    data?.forEach(d => {
-                        const keys = Object.keys(d);
-                        sel.innerHTML += `<option value="${d[keys[0]]}">${d[keys[1]]}</option>`;
-                    });
-                };
-                await cargar('seguros', 'p-id-seguro', 'SEGURO');
-                await cargar('ciudades', 'p-id-ciudad', 'CIUDAD');
-                await cargar('profesiones', 'p-id-profesion', 'PROFESIÓN');
-                await cargar('ocupaciones', 'p-id-ocupacion', 'OCUPACIÓN');
-            },
+         async cargarCatalogos() {
+         const cargar = async (tabla, idSelect, colId, colNombre, label) => {
+         try {
+            // Buscamos explícitamente las columnas por su nombre
+            const { data, error } = await _sb.from(tabla).select(`${colId}, ${colNombre}`).order(colNombre);
+            
+            if (error) throw error;
 
-            view(name) {
-                document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
-                document.getElementById('view-' + name).classList.add('active');
-                lucide.createIcons();
-            },
+            const sel = document.getElementById(idSelect);
+            sel.innerHTML = `<option value="">-- ${label} --</option>`;
+            
+            if (data) {
+                data.forEach(d => {
+                    sel.innerHTML += `<option value="${d[colId]}">${d[colNombre]}</option>`;
+                });
+            }
+        } catch (err) {
+            console.error(`Error cargando ${tabla}:`, err);
+        }
+    };
+
+    // Ajustamos los nombres exactos de las columnas de tus tablas
+    await cargar('seguros', 'p-id-seguro', 'id_seguro', 'nombre_seguro', 'SEGURO');
+    await cargar('ciudades', 'p-id-ciudad', 'id_ciudad', 'nombre_ciudad', 'CIUDAD');
+    await cargar('profesiones', 'p-id-profesion', 'id_profesion', 'nombre_profesion', 'PROFESIÓN');
+    await cargar('ocupaciones', 'p-id-ocupacion', 'id_ocupacion', 'nombre_ocupacion', 'OCUPACIÓN');
+    },
 
             calcularIMC() {
                 const peso = parseFloat(document.getElementById('c-peso').value);
