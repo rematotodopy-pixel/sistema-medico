@@ -55,44 +55,68 @@
                 lucide.createIcons();
             },
 
+           // ... (Mantén el inicio del script igual hasta llegar a seleccionarSede)
+
             async seleccionarSede(h) {
                 this.sedeActual = h;
                 document.getElementById('hospital-selector-screen').classList.add('hidden');
                 document.getElementById('app-content').classList.remove('hidden');
                 document.getElementById('label-hospital-activa').innerText = h.nombre_hospital;
                 document.getElementById('user-name').innerText = `DR. ${this.user.nombre} ${this.user.apellido}`;
-                await this.cargarCatalogos();
+                
+                // IMPORTANTE: Esperar a que los catálogos carguen antes de seguir
+                await this.cargarCatalogos(); 
+                
                 this.view('dashboard');
                 this.actualizarDashboard();
             },
 
-         async cargarCatalogos() {
-         const cargar = async (tabla, idSelect, colId, colNombre, label) => {
-         try {
-            // Buscamos explícitamente las columnas por su nombre
-            const { data, error } = await _sb.from(tabla).select(`${colId}, ${colNombre}`).order(colNombre);
-            
-            if (error) throw error;
+            async cargarCatalogos() {
+                console.log("Iniciando carga de catálogos...");
+                
+                const cargar = async (tabla, idSelect, colId, colNombre, label) => {
+                    try {
+                        const { data, error } = await _sb
+                            .from(tabla)
+                            .select(`${colId}, ${colNombre}`)
+                            .order(colNombre, { ascending: true });
+                        
+                        if (error) {
+                            console.error(`Error en tabla ${tabla}:`, error.message);
+                            return;
+                        }
 
-            const sel = document.getElementById(idSelect);
-            sel.innerHTML = `<option value="">-- ${label} --</option>`;
-            
-            if (data) {
-                data.forEach(d => {
-                    sel.innerHTML += `<option value="${d[colId]}">${d[colNombre]}</option>`;
-                });
-            }
-        } catch (err) {
-            console.error(`Error cargando ${tabla}:`, err);
-        }
-    };
+                        const sel = document.getElementById(idSelect);
+                        if (!sel) return;
 
-    // Ajustamos los nombres exactos de las columnas de tus tablas
-    await cargar('seguros', 'p-id-seguro', 'id_seguro', 'nombre_seguro', 'SEGURO');
-    await cargar('ciudades', 'p-id-ciudad', 'id_ciudad', 'nombre_ciudad', 'CIUDAD');
-    await cargar('profesiones', 'p-id-profesion', 'id_profesion', 'nombre_profesion', 'PROFESIÓN');
-    await cargar('ocupaciones', 'p-id-ocupacion', 'id_ocupacion', 'nombre_ocupacion', 'OCUPACIÓN');
-    },
+                        sel.innerHTML = `<option value="">-- SELECCIONAR ${label} --</option>`;
+                        
+                        if (data && data.length > 0) {
+                            data.forEach(d => {
+                                const option = document.createElement('option');
+                                option.value = d[colId];
+                                option.textContent = d[colNombre].toUpperCase();
+                                sel.appendChild(option);
+                            });
+                            console.log(`✅ ${tabla} cargada: ${data.length} registros.`);
+                        } else {
+                            console.warn(`⚠️ La tabla ${tabla} está vacía.`);
+                        }
+                    } catch (err) {
+                        console.error(`Error fatal cargando ${tabla}:`, err);
+                    }
+                };
+
+                // Ejecutamos todas las cargas en paralelo para mayor velocidad
+                await Promise.all([
+                    cargar('seguros', 'p-id-seguro', 'id_seguro', 'nombre_seguro', 'SEGURO'),
+                    cargar('ciudades', 'p-id-ciudad', 'id_ciudad', 'nombre_ciudad', 'CIUDAD'),
+                    cargar('profesiones', 'p-id-profesion', 'id_profesion', 'nombre_profesion', 'PROFESIÓN'),
+                    cargar('ocupaciones', 'p-id-ocupacion', 'id_ocupacion', 'nombre_ocupacion', 'OCUPACIÓN')
+                ]);
+            },
+
+// ... (El resto del código como guardarPaciente, buscar, etc., se mantiene igual)
 
             calcularIMC() {
                 const peso = parseFloat(document.getElementById('c-peso').value);
